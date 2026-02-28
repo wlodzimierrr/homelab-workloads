@@ -16,11 +16,15 @@ spec:
               kubernetes.io/metadata.name: kube-system
       ports:
         - protocol: TCP
+          port: 80
+        - protocol: TCP
           port: 8000
     - from:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: homelab-web
       ports:
+        - protocol: TCP
+          port: 80
         - protocol: TCP
           port: 8000
