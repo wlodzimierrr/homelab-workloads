@@ -36,3 +36,5 @@ id_ed25519*
 # -------------------------
 missing
 wg0.conf
+docs/day-0-rebuild-runbook.md
+workloads-repo/
