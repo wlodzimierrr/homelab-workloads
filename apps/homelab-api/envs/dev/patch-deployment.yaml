@@ -9,7 +9,10 @@ spec:
     spec:
       containers:
         - name: api
-          image: ghcr.io/example/homelab-api:dev
+          image: hashicorp/http-echo:1.0.0
+          args:
+            - "-listen=:8000"
+            - "-text=ok"
           env:
             - name: APP_ENV
               value: dev
