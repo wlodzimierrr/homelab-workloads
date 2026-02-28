@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homelab-api
+  namespace: homelab-api
+  labels:
+    app.kubernetes.io/name: homelab-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homelab-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homelab-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/homelab-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: APP_ENV
+              value: base
+            - name: LOG_LEVEL
+              value: info
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
