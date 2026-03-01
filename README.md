@@ -17,6 +17,8 @@ Use these exact paths in Argo CD `spec.source.path`.
 |---|---|
 | Root app (dev) | `environments/dev` |
 | Root app (prod) | `environments/prod` |
+| Workloads child app (dev) | `environments/dev/workloads` |
+| Workloads child app (prod) | `environments/prod/workloads` |
 | Platform (dev) | `platform/envs/dev` |
 | Platform (prod) | `platform/envs/prod` |
 | Homelab API (dev) | `apps/homelab-api/envs/dev` |
