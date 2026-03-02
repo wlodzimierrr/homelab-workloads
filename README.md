@@ -83,3 +83,17 @@ Use these exact paths in Argo CD `spec.source.path`.
 - `postgres-service.yaml` + `postgres-secret.yaml` for in-cluster DB connectivity and credentials.
 - `migration-job.yaml` (Argo CD Sync hook) that runs `alembic upgrade head`.
 - DB-specific network policies allowing only labeled DB clients to reach Postgres on `5432`.
+
+### Private GHCR image pulls
+
+If `homelab-api` images are private in GHCR, create a pull secret in the `homelab-api` namespace and reference it as `ghcr-pull-secret`:
+
+```bash
+kubectl -n homelab-api create secret docker-registry ghcr-pull-secret \
+  --docker-server=ghcr.io \
+  --docker-username=wlodzimierrr \
+  --docker-password="$CR_PAT"
+```
+
+`apps/homelab-api/base/serviceaccount-backend.yaml` is configured to use this secret via `imagePullSecrets`.
+
