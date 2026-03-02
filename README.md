@@ -80,9 +80,34 @@ Use these exact paths in Argo CD `spec.source.path`.
 `apps/homelab-api/base` now includes:
 
 - `postgres-statefulset.yaml` with a PVC (`volumeClaimTemplates`) for durable Postgres storage.
-- `postgres-service.yaml` + `postgres-secret.yaml` for in-cluster DB connectivity and credentials.
+- `postgres-service.yaml` for in-cluster DB connectivity.
 - `migration-job.yaml` (Argo CD Sync hook) that runs `alembic upgrade head`.
 - DB-specific network policies allowing only labeled DB clients to reach Postgres on `5432`.
+
+### Postgres credentials bootstrap (no plaintext secrets in Git)
+
+`homelab-api` expects a Secret named `homelab-api-postgres` in namespace `homelab-api`.
+This repo intentionally does not store the Secret manifest with credentials.
+
+Bootstrap/create secret:
+
+```bash
+cp apps/homelab-api/base/postgres-secret.env.example /tmp/homelab-api-postgres.env
+# Edit /tmp/homelab-api-postgres.env and set a strong POSTGRES_PASSWORD.
+kubectl -n homelab-api create secret generic homelab-api-postgres \
+  --from-env-file=/tmp/homelab-api-postgres.env \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Rotate password:
+
+```bash
+kubectl -n homelab-api create secret generic homelab-api-postgres \
+  --from-env-file=/tmp/homelab-api-postgres.env \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n homelab-api rollout restart deployment/homelab-api
+kubectl -n argocd annotate app homelab-api-dev argocd.argoproj.io/refresh=hard --overwrite
+```
 
 ### Private GHCR image pulls
 
@@ -96,4 +121,3 @@ kubectl -n homelab-api create secret docker-registry ghcr-pull-secret \
 ```
 
 `apps/homelab-api/base/serviceaccount-backend.yaml` is configured to use this secret via `imagePullSecrets`.
-
