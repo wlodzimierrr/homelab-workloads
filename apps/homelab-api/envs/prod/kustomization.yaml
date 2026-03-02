@@ -7,3 +7,4 @@ commonLabels:
 patches:
   - path: patch-deployment.yaml
   - path: patch-migration-job.yaml
+  - path: patch-ingress.yaml

@@ -121,3 +121,27 @@ kubectl -n homelab-api create secret docker-registry ghcr-pull-secret \
 ```
 
 `apps/homelab-api/base/serviceaccount-backend.yaml` is configured to use this secret via `imagePullSecrets`.
+
+## Ingress hosts
+
+Current host routing:
+
+- `portal.dev.homelab.local` -> `homelab-web`
+- `portal.homelab.local` -> `homelab-web`
+- `api.dev.homelab.local` -> `homelab-api`
+- `api.homelab.local` -> `homelab-api`
+
+Frontend proxies `/api/*` to `homelab-api.homelab-api.svc.cluster.local`.
+
+### Private GHCR image pulls for web namespace
+
+`homelab-web` uses ServiceAccount `homelab-web` with pull secret `ghcr-pull-secret`.
+Create it in `homelab-web` namespace too:
+
+```bash
+kubectl -n homelab-web create secret docker-registry ghcr-pull-secret \
+  --docker-server=ghcr.io \
+  --docker-username=wlodzimierrr \
+  --docker-password="$CR_PAT"
+```
+

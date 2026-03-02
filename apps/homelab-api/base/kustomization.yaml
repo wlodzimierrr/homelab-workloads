@@ -7,6 +7,7 @@ resources:
   - rolebinding-backend-kube-api-read.yaml
   - deployment.yaml
   - service.yaml
+  - ingress.yaml
   - postgres-service.yaml
   - postgres-statefulset.yaml
   - migration-job.yaml

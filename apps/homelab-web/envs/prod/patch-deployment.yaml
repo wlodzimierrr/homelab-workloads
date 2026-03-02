@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homelab-web
+  namespace: homelab-web
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/wlodzimierrr/homelab-web:0.1.0
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
