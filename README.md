@@ -81,7 +81,7 @@ Use these exact paths in Argo CD `spec.source.path`.
 
 - `postgres-statefulset.yaml` with a PVC (`volumeClaimTemplates`) for durable Postgres storage.
 - `postgres-service.yaml` for in-cluster DB connectivity.
-- `migration-job.yaml` (Argo CD Sync hook) that runs `alembic upgrade head`.
+- `migration-job.yaml` (Argo CD Sync hook) that waits for DB readiness and runs `alembic upgrade head` with retry.
 - DB-specific network policies allowing only labeled DB clients to reach Postgres on `5432`.
 
 ### Postgres credentials bootstrap (no plaintext secrets in Git)
