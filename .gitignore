@@ -37,9 +37,12 @@ id_ed25519*
 missing
 wg0.conf
 docs/day-0-rebuild-runbook.md
+homelab.md
 workloads-repo/
 
 # -------------------------
 # App Source Split (tracked in separate repo)
 # -------------------------
 apps/portal/
+
+docs/homelab.md
