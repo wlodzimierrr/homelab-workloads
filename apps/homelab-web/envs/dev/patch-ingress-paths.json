@@ -1,0 +1,10 @@
+- op: replace
+  path: /spec/rules/0/http/paths
+  value:
+    - path: /
+      pathType: Prefix
+      backend:
+        service:
+          name: homelab-web
+          port:
+            number: 80
