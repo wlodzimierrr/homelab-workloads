@@ -36,6 +36,221 @@ spec:
           persistence:
             enabled: true
             size: 2Gi
+          dashboards:
+            default:
+              homelab-platform-health:
+                json: |
+                  {
+                    "id": null,
+                    "uid": "homelab-platform-health",
+                    "title": "Homelab Platform Health",
+                    "tags": ["homelab", "platform", "health"],
+                    "timezone": "browser",
+                    "schemaVersion": 39,
+                    "version": 1,
+                    "refresh": "30s",
+                    "time": {
+                      "from": "now-6h",
+                      "to": "now"
+                    },
+                    "panels": [
+                      {
+                        "id": 1,
+                        "type": "stat",
+                        "title": "API Availability Ratio",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"homelab-api\",deployment=\"homelab-api\"}) / clamp_min(sum(kube_deployment_spec_replicas{namespace=\"homelab-api\",deployment=\"homelab-api\"}), 1)"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "unit": "percentunit",
+                            "min": 0,
+                            "max": 1,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "red", "value": null},
+                                {"color": "green", "value": 1}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+                          "colorMode": "value",
+                          "graphMode": "none",
+                          "justifyMode": "auto",
+                          "orientation": "auto"
+                        }
+                      },
+                      {
+                        "id": 2,
+                        "type": "stat",
+                        "title": "Frontend Availability Ratio",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum(kube_deployment_status_replicas_available{namespace=\"homelab-web\",deployment=\"homelab-web\"}) / clamp_min(sum(kube_deployment_spec_replicas{namespace=\"homelab-web\",deployment=\"homelab-web\"}), 1)"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "unit": "percentunit",
+                            "min": 0,
+                            "max": 1,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "red", "value": null},
+                                {"color": "green", "value": 1}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+                          "colorMode": "value",
+                          "graphMode": "none",
+                          "justifyMode": "auto",
+                          "orientation": "auto"
+                        }
+                      },
+                      {
+                        "id": 3,
+                        "type": "stat",
+                        "title": "DB Ready Replicas",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum(kube_statefulset_status_replicas_ready{namespace=\"homelab-api\",statefulset=\"homelab-api-postgres\"})"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "min": 0,
+                            "max": 1,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "red", "value": null},
+                                {"color": "green", "value": 1}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+                          "colorMode": "value",
+                          "graphMode": "none",
+                          "justifyMode": "auto",
+                          "orientation": "auto"
+                        }
+                      },
+                      {
+                        "id": 4,
+                        "type": "stat",
+                        "title": "API Restart Count (15m)",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"homelab-api\",container=\"api\"}[15m]))"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "min": 0,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "green", "value": null},
+                                {"color": "yellow", "value": 1},
+                                {"color": "red", "value": 3}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+                          "colorMode": "value",
+                          "graphMode": "none",
+                          "justifyMode": "auto",
+                          "orientation": "auto"
+                        }
+                      },
+                      {
+                        "id": 5,
+                        "type": "timeseries",
+                        "title": "Deployment Ready vs Desired Replicas",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum by (deployment, namespace) (kube_deployment_status_replicas_available{namespace=~\"homelab-api|homelab-web\",deployment=~\"homelab-api|homelab-web\"})",
+                            "legendFormat": "{{namespace}}/{{deployment}} ready"
+                          },
+                          {
+                            "refId": "B",
+                            "expr": "sum by (deployment, namespace) (kube_deployment_spec_replicas{namespace=~\"homelab-api|homelab-web\",deployment=~\"homelab-api|homelab-web\"})",
+                            "legendFormat": "{{namespace}}/{{deployment}} desired"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {"min": 0},
+                          "overrides": []
+                        },
+                        "options": {
+                          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}
+                        }
+                      },
+                      {
+                        "id": 6,
+                        "type": "timeseries",
+                        "title": "Prototype Error Signal: API 5xx Rate (Traefik)",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "sum(rate(traefik_service_requests_total{code=~\"5..\",service=~\".*homelab-api.*\"}[5m]))",
+                            "legendFormat": "api 5xx rps"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "min": 0,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "green", "value": null},
+                                {"color": "yellow", "value": 0.01},
+                                {"color": "red", "value": 0.05}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}
+                        }
+                      }
+                    ]
+                  }
           resources:
             requests:
               cpu: 50m
@@ -91,6 +306,59 @@ spec:
                   resources:
                     requests:
                       storage: 5Gi
+
+        additionalPrometheusRulesMap:
+          homelab-platform-health:
+            groups:
+              - name: homelab.platform.availability
+                rules:
+                  - alert: HomelabApiUnavailable
+                    expr: kube_deployment_status_replicas_available{namespace="homelab-api",deployment="homelab-api"} < 1
+                    for: 5m
+                    labels:
+                      severity: warning
+                      service: homelab-api
+                    annotations:
+                      summary: "homelab-api has no available replicas"
+                      description: "homelab-api deployment is unavailable for more than 5 minutes."
+                  - alert: HomelabWebUnavailable
+                    expr: kube_deployment_status_replicas_available{namespace="homelab-web",deployment="homelab-web"} < 1
+                    for: 5m
+                    labels:
+                      severity: warning
+                      service: homelab-web
+                    annotations:
+                      summary: "homelab-web has no available replicas"
+                      description: "homelab-web deployment is unavailable for more than 5 minutes."
+                  - alert: HomelabPostgresUnavailable
+                    expr: kube_statefulset_status_replicas_ready{namespace="homelab-api",statefulset="homelab-api-postgres"} < 1
+                    for: 5m
+                    labels:
+                      severity: warning
+                      service: homelab-postgres
+                    annotations:
+                      summary: "homelab-api Postgres is not ready"
+                      description: "Postgres StatefulSet has no ready replicas for more than 5 minutes."
+              - name: homelab.platform.error-prototype
+                rules:
+                  - alert: HomelabApiRestartSpike
+                    expr: sum(increase(kube_pod_container_status_restarts_total{namespace="homelab-api",container="api"}[15m])) > 2
+                    for: 10m
+                    labels:
+                      severity: warning
+                      service: homelab-api
+                    annotations:
+                      summary: "homelab-api restart spike"
+                      description: "API container restarts exceeded prototype threshold in 15 minutes."
+                  - alert: HomelabApi5xxRateHighPrototype
+                    expr: sum(rate(traefik_service_requests_total{code=~"5..",service=~".*homelab-api.*"}[5m])) > 0.05
+                    for: 10m
+                    labels:
+                      severity: warning
+                      service: homelab-api
+                    annotations:
+                      summary: "homelab-api 5xx prototype threshold breached"
+                      description: "Traefik 5xx request rate for homelab-api is above 0.05 rps (prototype threshold)."
   destination:
     server: https://kubernetes.default.svc
     namespace: monitoring
