@@ -3,5 +3,7 @@ kind: Kustomization
 resources:
   - homelab-api-app.yaml
   - homelab-web-app.yaml
+  - loki-app.yaml
   - monitoring-app.yaml
   - monitoring-ingress-app.yaml
+  - promtail-app.yaml

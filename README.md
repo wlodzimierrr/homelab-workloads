@@ -26,6 +26,8 @@ Use these exact paths in Argo CD `spec.source.path`.
 | Homelab Web (dev) | `apps/homelab-web/envs/dev` |
 | Homelab Web (prod) | `apps/homelab-web/envs/prod` |
 | Monitoring app (dev) | `environments/dev/workloads/monitoring-app.yaml` |
+| Loki app (dev) | `environments/dev/workloads/loki-app.yaml` |
+| Promtail app (dev) | `environments/dev/workloads/promtail-app.yaml` |
 
 ## Bootstrapping sequence
 
@@ -44,10 +46,11 @@ Use these exact paths in Argo CD `spec.source.path`.
 - `homelab-web`: may deploy only to `homelab-web` namespace.
 - `homelab-monitoring`: may deploy to `monitoring` and required scrape service objects in `kube-system`.
 
-All projects allow only this repo URL as a source:
+Source repos allowed by project:
 
 - `https://github.com/wlodzimierrr/homelab-workloads.git`
 - `https://prometheus-community.github.io/helm-charts` (monitoring only)
+- `https://grafana.github.io/helm-charts` (Loki/Promtail only)
 
 ## RBAC audit guardrails
 
@@ -281,6 +284,26 @@ Operational runbook:
 
 - `docs/runbooks/monitoring-kube-prometheus-stack.md`
 - `docs/runbooks/platform-health-dashboard.md`
+
+## Centralized logging stack (T4.2.1)
+
+Loki + Promtail are deployed as Argo CD applications:
+
+- `environments/dev/workloads/loki-app.yaml`
+- `environments/dev/workloads/promtail-app.yaml`
+
+Homelab resource profile:
+
+- Loki runs single-binary mode with `10Gi` PVC.
+- Retention is enabled with `retention_period: 168h` (7 days).
+- Promtail runs as a DaemonSet and ships pod logs to Loki.
+- Log labels support filtering by `namespace`, `container`, and `app` in Grafana Explore.
+- Grafana is preconfigured with a Loki datasource (`uid: loki`) in `environments/dev/workloads/monitoring-app.yaml`.
+
+Operational runbook:
+
+- `docs/runbooks/logging-loki-promtail.md`
+- `docs/runbooks/log-to-triage-workflow.md`
 
 ### Registry retention policy
 
