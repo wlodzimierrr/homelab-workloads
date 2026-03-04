@@ -4,3 +4,4 @@ resources:
   - homelab-api-app.yaml
   - homelab-web-app.yaml
   - monitoring-app.yaml
+  - monitoring-ingress-app.yaml

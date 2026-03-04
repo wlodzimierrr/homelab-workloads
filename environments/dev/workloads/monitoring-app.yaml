@@ -33,6 +33,10 @@ spec:
 
         grafana:
           adminPassword: changeme-dev
+          grafana.ini:
+            server:
+              domain: monitoring.homelab.local
+              root_url: http://monitoring.homelab.local
           persistence:
             enabled: true
             size: 2Gi

@@ -9,6 +9,7 @@ metadata:
 data:
   url: https://argocd.wlodzimierrr.co.uk
   admin.enabled: "false"
+  application.instanceLabelKey: argocd.argoproj.io/instance
   dex.config: |
     connectors:
       - type: github

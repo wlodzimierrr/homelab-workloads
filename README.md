@@ -159,6 +159,7 @@ Current host routing:
 - `portal.homelab.local` -> `homelab-web`
 - `api.dev.homelab.local` -> `homelab-api`
 - `api.homelab.local` -> `homelab-api`
+- `monitoring.homelab.local` -> `kube-prometheus-stack-grafana` (namespace `monitoring`)
 
 Frontend proxies `/api/*` to `homelab-api.homelab-api.svc.cluster.local`.
 
@@ -279,6 +280,7 @@ Homelab resource profile:
 Operational runbook:
 
 - `docs/runbooks/monitoring-kube-prometheus-stack.md`
+- `docs/runbooks/platform-health-dashboard.md`
 
 ### Registry retention policy
 
