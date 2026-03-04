@@ -5,11 +5,19 @@ metadata:
   namespace: homelab-web
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: homelab-web-oauth2-errors@kubernetescrd,homelab-web-oauth2-forward-auth@kubernetescrd
 spec:
   rules:
     - host: portal.dev.homelab.local
       http:
         paths:
+          - path: /oauth2/
+            pathType: Prefix
+            backend:
+              service:
+                name: oauth2-proxy
+                port:
+                  number: 4180
           - path: /
             pathType: Prefix
             backend:

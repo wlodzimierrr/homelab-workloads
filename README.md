@@ -157,47 +157,36 @@ Current host routing:
 
 Frontend proxies `/api/*` to `homelab-api.homelab-api.svc.cluster.local`.
 
-## Portal ingress auth gate (T1.3.2)
+## Portal ingress auth gate (T3.2.2)
 
-`apps/homelab-web/base/ingress.yaml` is protected by Traefik basic auth middleware:
+Base manifests still include basic-auth middleware for fallback, while the dev overlay enables centralized SSO through oauth2-proxy + Traefik ForwardAuth.
 
-- Middleware: `homelab-web-basic-auth`
-- Secret reference: `homelab-web-basic-auth`
-- Annotation: `traefik.ingress.kubernetes.io/router.middlewares`
+Dev overlay resources:
 
-`apps/homelab-web/base/ingress-api.yaml` handles `/api` on the same host without basic-auth middleware so application bearer JWT headers are not blocked by ingress basic-auth challenges.
+- `apps/homelab-web/envs/dev/oauth2-proxy.yaml`
+- `apps/homelab-web/envs/dev/middleware-oauth2.yaml`
+- `apps/homelab-web/envs/dev/networkpolicy-allow-ingress-oauth2-proxy.yaml`
+- `apps/homelab-web/envs/dev/networkpolicy-allow-egress-oauth2-proxy.yaml`
+- ingress patches in `apps/homelab-web/envs/dev/patch-ingress.yaml` and `patch-ingress-api.yaml`
 
-### Basic auth bootstrap (secret not stored in Git)
+### oauth2-proxy bootstrap (secret in Git is placeholder only)
 
-Create the middleware credential secret in `homelab-web` namespace:
+Edit placeholders in `apps/homelab-web/envs/dev/oauth2-proxy.yaml` and apply:
 
 ```bash
-cp apps/homelab-web/base/basic-auth-secret.env.example /tmp/homelab-web-basic-auth.env
-# Replace the placeholder hash with a real htpasswd line, for example:
-# htpasswd -nbB admin 'change-me-now'
-kubectl -n homelab-web create secret generic homelab-web-basic-auth \
-  --from-env-file=/tmp/homelab-web-basic-auth.env \
-  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -k apps/homelab-web/envs/dev
 ```
+
+This config protects both UI and `/api/*` with:
+
+- `oauth2-errors` middleware: converts auth `401/403` to oauth2 sign-in flow.
+- `oauth2-forward-auth` middleware: validates session and forwards user/group claims.
 
 ### Emergency break-glass path
 
-Temporarily disable ingress auth by removing middleware annotation from the ingress (unauthenticated access will then be allowed):
+Use `docs/runbooks/sso-break-glass.md` for emergency bypass and restoration commands.
 
-```bash
-kubectl -n homelab-web annotate ingress homelab-web \
-  traefik.ingress.kubernetes.io/router.middlewares-
-```
-
-Restore the auth gate:
-
-```bash
-kubectl -n homelab-web annotate ingress homelab-web \
-  traefik.ingress.kubernetes.io/router.middlewares=homelab-web-homelab-web-basic-auth@kubernetescrd \
-  --overwrite
-```
-
-Because this repo is GitOps-managed, also commit matching manifest changes (or revert the break-glass commit) so Argo CD state remains consistent.
+Because this repo is GitOps-managed, commit/revert any break-glass change so Argo CD state remains consistent.
 
 ### Private GHCR image pulls for web namespace
 
