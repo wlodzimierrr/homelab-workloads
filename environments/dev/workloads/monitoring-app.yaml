@@ -1,0 +1,103 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring-dev
+  namespace: argocd
+spec:
+  project: homelab-monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 69.5.2
+    helm:
+      releaseName: kube-prometheus-stack
+      values: |
+        defaultRules:
+          create: true
+
+        kubeApiServer:
+          enabled: false
+        kubeControllerManager:
+          enabled: false
+        kubeEtcd:
+          enabled: false
+        kubeProxy:
+          enabled: false
+        kubeScheduler:
+          enabled: false
+        coreDns:
+          enabled: false
+
+        alertmanager:
+          enabled: false
+
+        grafana:
+          adminPassword: changeme-dev
+          persistence:
+            enabled: true
+            size: 2Gi
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+
+        prometheusOperator:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: 300m
+              memory: 384Mi
+
+        kube-state-metrics:
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+        prometheus-node-exporter:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+
+        prometheus:
+          prometheusSpec:
+            retention: 24h
+            retentionSize: 3GiB
+            walCompression: true
+            resources:
+              requests:
+                cpu: 200m
+                memory: 600Mi
+              limits:
+                cpu: 500m
+                memory: 1Gi
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes:
+                    - ReadWriteOnce
+                  resources:
+                    requests:
+                      storage: 5Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

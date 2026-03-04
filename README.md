@@ -18,13 +18,14 @@ Use these exact paths in Argo CD `spec.source.path`.
 | Root app (dev) | `environments/dev` |
 | Root app (prod) | `environments/prod` |
 | Workloads child app (dev) | `environments/dev/workloads` |
-| Workloads child app (prod) | `environments/prod/workloads` |
+| Workloads child app (prod) | `environments/prod/workloads` (intentionally empty in single-cluster mode) |
 | Platform (dev) | `platform/envs/dev` |
 | Platform (prod) | `platform/envs/prod` |
 | Homelab API (dev) | `apps/homelab-api/envs/dev` |
 | Homelab API (prod) | `apps/homelab-api/envs/prod` |
 | Homelab Web (dev) | `apps/homelab-web/envs/dev` |
 | Homelab Web (prod) | `apps/homelab-web/envs/prod` |
+| Monitoring app (dev) | `environments/dev/workloads/monitoring-app.yaml` |
 
 ## Bootstrapping sequence
 
@@ -35,16 +36,18 @@ Use these exact paths in Argo CD `spec.source.path`.
 
 ## Argo CD project boundaries
 
-`bootstrap/project-homelab.yaml` defines four scoped `AppProject` objects:
+`bootstrap/project-homelab.yaml` defines five scoped `AppProject` objects:
 
 - `homelab-bootstrap`: may deploy only to `argocd` namespace.
 - `homelab-platform`: may deploy only to `platform` namespace.
 - `homelab-api`: may deploy only to `homelab-api` namespace.
 - `homelab-web`: may deploy only to `homelab-web` namespace.
+- `homelab-monitoring`: may deploy to `monitoring` and required scrape service objects in `kube-system`.
 
 All projects allow only this repo URL as a source:
 
 - `https://github.com/wlodzimierrr/homelab-workloads.git`
+- `https://prometheus-community.github.io/helm-charts` (monitoring only)
 
 ## RBAC audit guardrails
 
@@ -65,6 +68,8 @@ Run locally:
 
 - `repoURL` in bootstrap and environment Applications is pinned to this repo URL; update all manifests consistently if you fork or rename it.
 - Environment folders use Kustomize overlays for clear, explicit promotion boundaries.
+- Single-cluster safety mode: `environments/prod/workloads/kustomization.yaml` is intentionally empty to prevent accidental recreation of `*-prod` apps in the same cluster/namespaces.
+- `homelab-api-prod`, `homelab-web-prod`, and `monitoring-prod` should remain deleted from Argo CD unless you introduce separate namespaces/clusters for prod isolation.
 
 ## Layering Strategy
 
@@ -256,6 +261,24 @@ kubectl -n homelab-web rollout status deployment/homelab-web
 ```
 
 Rotation cadence: every 90 days, and immediately after any credential exposure suspicion.
+
+## Monitoring stack (T4.1.1)
+
+`kube-prometheus-stack` is deployed as Argo CD applications:
+
+- `environments/dev/workloads/monitoring-app.yaml`
+
+Homelab resource profile:
+
+- Alertmanager disabled to reduce baseline memory footprint.
+- Prometheus retention: `24h` and `retentionSize: 3GiB` on `5Gi` PVC.
+- Grafana persistence enabled with `2Gi` PVC.
+- Scope: single shared cluster monitoring stack for now (no separate `monitoring-prod` app) to avoid Argo CD shared-resource conflicts.
+- Future: split monitoring per environment using distinct release names and namespaces when multi-cluster or strict env isolation is introduced.
+
+Operational runbook:
+
+- `docs/runbooks/monitoring-kube-prometheus-stack.md`
 
 ### Registry retention policy
 

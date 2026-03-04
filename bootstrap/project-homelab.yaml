@@ -31,6 +31,25 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
+  name: homelab-monitoring
+  namespace: argocd
+spec:
+  description: Homelab monitoring stack resources in monitoring namespace
+  sourceRepos:
+    - https://github.com/wlodzimierrr/homelab-workloads.git
+    - https://prometheus-community.github.io/helm-charts
+  destinations:
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
   name: homelab-api
   namespace: argocd
 spec:
