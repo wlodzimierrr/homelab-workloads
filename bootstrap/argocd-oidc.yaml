@@ -3,8 +3,11 @@ kind: ConfigMap
 metadata:
   name: argocd-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
-  url: https://argocd.dev.homelab.local
+  url: https://argocd.wlodzimierrr.co.uk
   admin.enabled: "false"
   dex.config: |
     connectors:
@@ -20,6 +23,9 @@ kind: ConfigMap
 metadata:
   name: argocd-rbac-cm
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
 data:
   policy.default: role:readonly
   scopes: "[groups, email]"
