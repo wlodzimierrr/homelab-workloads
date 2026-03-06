@@ -30,6 +30,12 @@ spec:
             - name: http
               containerPort: 8000
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: OBS_METRICS_APP_LABEL
+              value: homelab-api
             - name: APP_ENV
               value: base
             - name: LOG_LEVEL

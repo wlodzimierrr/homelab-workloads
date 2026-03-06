@@ -10,6 +10,7 @@ resources:
   - deployment.yaml
   - catalog-sync-cronjob.yaml
   - service.yaml
+  - servicemonitor.yaml
   - ingress.yaml
   - postgres-service.yaml
   - postgres-statefulset.yaml
@@ -22,5 +23,6 @@ resources:
   - networkpolicy-allow-egress-loki.yaml
   - networkpolicy-allow-egress-alertmanager.yaml
   - networkpolicy-allow-ingress.yaml
+  - networkpolicy-allow-ingress-from-monitoring.yaml
   - networkpolicy-allow-postgres-ingress.yaml
   - networkpolicy-allow-egress-postgres.yaml
