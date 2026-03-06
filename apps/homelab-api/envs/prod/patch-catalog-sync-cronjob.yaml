@@ -1,0 +1,13 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: homelab-api-catalog-sync
+  namespace: homelab-api
+spec:
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: catalog-sync
+              image: ghcr.io/wlodzimierrr/homelab-api:sha-3202267893abebce86a5a5293b52263748e8d770

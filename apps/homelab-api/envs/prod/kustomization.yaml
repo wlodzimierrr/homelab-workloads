@@ -6,5 +6,6 @@ commonLabels:
   homelab.env: prod
 patches:
   - path: patch-deployment.yaml
+  - path: patch-catalog-sync-cronjob.yaml
   - path: patch-migration-job.yaml
   - path: patch-ingress.yaml
