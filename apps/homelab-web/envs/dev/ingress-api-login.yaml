@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homelab-web-api-login
+  namespace: homelab-web
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.priority: "150"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: portal.dev.homelab.local
+      http:
+        paths:
+          - path: /api/auth/login
+            pathType: Exact
+            backend:
+              service:
+                name: homelab-web
+                port:
+                  number: 80
