@@ -64,8 +64,17 @@ Run locally:
 ```bash
 ./scripts/check-rbac-guardrails.sh
 ./scripts/check-secrets-guardrails.sh
+./scripts/check-environment-contract.sh
+./scripts/smoke-test-scaffold-generator.sh
 ./scripts/verify-rotation-slo.sh homelab-api homelab-api 300
 ```
+
+## Environment contract
+
+| Environment | Root app | Platform path | Workloads path | Current state |
+|---|---|---|---|---|
+| `dev` | `bootstrap/root-app-dev.yaml` | `platform/envs/dev` | `environments/dev/workloads` | Active on the current cluster |
+| `prod` | `bootstrap/root-app-prod.yaml` | `platform/envs/prod` | `environments/prod/workloads` | Overlay intent exists; workloads path stays empty with `allowEmpty: true` in single-cluster safety mode |
 
 ## Notes
 
@@ -94,12 +103,79 @@ Run locally:
   - `apps/homelab-api/envs/prod/kustomization.yaml`
   - `apps/homelab-api/envs/prod/patch-deployment.yaml`
 
-## Promotion Path (dev -> prod)
+## Promotion Contract (dev -> prod)
 
-1. Validate changes in `apps/homelab-api/envs/dev`.
-2. Promote by PR: update prod overlay (typically image tag in `apps/homelab-api/envs/prod/patch-deployment.yaml`).
-3. Merge after checks; Argo CD reconciles `apps/homelab-api/envs/prod`.
-4. Roll back by reverting the promotion commit.
+- Dev image bumps are created by `apps/portal/.github/workflows/portal-images.yml` and may change only dev overlay image patch files.
+- Prod promotion and rollback requests are created by `apps/portal/.github/workflows/gated-promotion.yml`.
+- Normal prod promotions for `homelab-api` and `homelab-web` may change only:
+  - `apps/homelab-api/envs/prod/patch-deployment.yaml`
+  - `apps/homelab-api/envs/prod/patch-migration-job.yaml`
+  - `apps/homelab-api/envs/prod/patch-catalog-sync-cronjob.yaml`
+  - `apps/homelab-web/envs/prod/patch-deployment.yaml`
+- Validate structural changes with `./scripts/check-environment-contract.sh`.
+- Roll back by re-running the gated workflow with `action_mode=rollback` or by reverting the merged prod PR.
+
+## Service scaffolding
+
+Use the scaffold generator to create a service repo skeleton plus matching GitOps manifests:
+
+```bash
+./scripts/scaffold-service.sh \
+  --name my-app \
+  --description "Internal app" \
+  --image-repo ghcr.io/wlodzimierrr/my-app \
+  --repo-url https://github.com/wlodzimierrr/my-app \
+  --owner platform \
+  --owner-email you@example.com \
+  --runbook-url https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/my-app.md \
+  --template python-fastapi \
+  --repo-output-dir /tmp/my-app-repo
+```
+
+Supported templates:
+
+- `python-fastapi`
+- `static-nginx`
+
+Useful overrides:
+
+- `--container-port` / `--service-port`
+- `--health-path` / `--readiness-path`
+- `--image-pull-secret ''` for public images
+- `--owner` / `--owner-email`
+- `--runbook-url` (defaults to `--repo-url`)
+
+What it generates:
+
+- Service source repo skeleton with Dockerfile, README, and CI workflow.
+- `apps/<service>/base` plus `envs/dev` and `envs/prod` overlays.
+- Dev and prod Argo `Application` manifests under `environments/*/workloads/`.
+- A new service `AppProject` appended to `bootstrap/project-homelab.yaml`.
+- A Git-backed service catalog entry appended to `services.yaml`.
+
+Current safety-mode behavior:
+
+- The dev app manifest is added to `environments/dev/workloads/kustomization.yaml`.
+- The prod app manifest is generated but not enabled in `environments/prod/workloads/kustomization.yaml` while single-cluster safety mode is active.
+
+Generator smoke test:
+
+```bash
+./scripts/smoke-test-scaffold-generator.sh
+```
+
+## Service catalog metadata
+
+`services.yaml` is the Git-backed source for lightweight portal catalog metadata.
+
+Each entry should define:
+
+- `service_id`
+- `owner`
+- `repo_url`
+- `runbook_url`
+
+The portal joins this file with project and service registry data so the Services page can show ownership links without relying on a spreadsheet.
 
 ## Network policy baseline
 

@@ -1,0 +1,44 @@
+name: Validate GitOps Environment Contract
+
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "bootstrap/**"
+      - "environments/**"
+      - "platform/**"
+      - "scripts/**"
+      - ".github/workflows/validate-gitops-environment-contract.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/**"
+      - "bootstrap/**"
+      - "environments/**"
+      - "platform/**"
+      - "scripts/**"
+      - ".github/workflows/validate-gitops-environment-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Contract And Render Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kustomize
+        uses: imranismail/setup-kustomize@v2
+        with:
+          kustomize-version: "5.4.3"
+
+      - name: Run manifest guardrails
+        run: |
+          ./scripts/check-rbac-guardrails.sh
+          ./scripts/check-secrets-guardrails.sh
+          ./scripts/check-environment-contract.sh
+          ./scripts/smoke-test-scaffold-generator.sh

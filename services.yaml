@@ -1,0 +1,27 @@
+services:
+  - service_id: homelab-api
+    name: Homelab API
+    owner: wlodzimierrr
+    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/backend
+    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-api-service-operations.md
+    description: FastAPI backend for the homelab portal and service metadata APIs.
+    envs:
+      - name: dev
+        namespace: homelab-api
+        argo_app: homelab-api-dev
+      - name: prod
+        namespace: homelab-api
+        argo_app: homelab-api-prod
+  - service_id: homelab-web
+    name: Homelab Web
+    owner: wlodzimierrr
+    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/frontend
+    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-web-service-operations.md
+    description: React frontend for the homelab portal UI.
+    envs:
+      - name: dev
+        namespace: homelab-web
+        argo_app: homelab-web-dev
+      - name: prod
+        namespace: homelab-web
+        argo_app: homelab-web-prod

@@ -28,23 +28,26 @@ rg -n "kind:\s*(ServiceAccount|Role|ClusterRole|RoleBinding|ClusterRoleBinding)|
 - `apps/homelab-web/base/serviceaccount-web.yaml` (`ServiceAccount`)
 - `apps/homelab-api/base/role-backend-kube-api-read.yaml` (`Role`)
 - `apps/homelab-api/base/rolebinding-backend-kube-api-read.yaml` (`RoleBinding`)
+- `apps/homelab-api/base/clusterrole-backend-kube-api-read.yaml` (`ClusterRole`)
+- `apps/homelab-api/base/clusterrolebinding-backend-kube-api-read.yaml` (`ClusterRoleBinding`)
 
 ### Risk checks
 
-- No `ClusterRoleBinding` in `apps/**`.
+- One approved `ClusterRoleBinding` exists in `apps/**` for `homelab-api` cluster-wide read-only discovery.
 - No `cluster-admin` role references in `apps/**`.
 - No wildcard (`*`) verbs/resources/apiGroups in app RBAC manifests.
-- App RBAC remains namespace-scoped (`Role` + `RoleBinding`) for `homelab-api`.
+- App RBAC is namespace-scoped by default, with one reviewed read-only `ClusterRole` + `ClusterRoleBinding` exception for `homelab-api` to read namespaces and Argo `Application` resources.
 
 ## Tightening actions completed
 
 - Added guardrail script: `scripts/check-rbac-guardrails.sh`
   - Fails if app manifests introduce:
-    - `ClusterRoleBinding`
+    - unexpected `ClusterRoleBinding`
     - `cluster-admin` references
     - wildcard RBAC tokens (`*`)
+    - mutating verbs in the approved read-only `ClusterRole`
 
 ## Conclusion
 
-- Acceptance criterion 1 met: no cluster-admin bindings for app workloads.
+- Acceptance criterion 1 met: no cluster-admin bindings for app workloads, and the only cluster-wide binding is a reviewed read-only exception.
 - Acceptance criterion 2 met: RBAC audit report committed.
