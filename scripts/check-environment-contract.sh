@@ -6,11 +6,18 @@ cd "$repo_root"
 
 status=0
 render_tool=""
+regex_tool=""
 
 if command -v kustomize >/dev/null 2>&1; then
   render_tool="kustomize"
 elif command -v kubectl >/dev/null 2>&1; then
   render_tool="kubectl"
+fi
+
+if command -v rg >/dev/null 2>&1; then
+  regex_tool="rg"
+else
+  regex_tool="grep"
 fi
 
 pass() {
@@ -38,11 +45,25 @@ require_regex() {
   local pattern="$2"
   local description="$3"
 
-  if rg -q "$pattern" "$file"; then
-    pass "$description"
-  else
-    fail "$description (pattern '$pattern' not found in $file)"
-  fi
+  case "$regex_tool" in
+    rg)
+      if rg -q "$pattern" "$file"; then
+        pass "$description"
+      else
+        fail "$description (pattern '$pattern' not found in $file)"
+      fi
+      ;;
+    grep)
+      if grep -Eq -- "$pattern" "$file"; then
+        pass "$description"
+      else
+        fail "$description (pattern '$pattern' not found in $file)"
+      fi
+      ;;
+    *)
+      fail "$description (no supported regex tool available)"
+      ;;
+  esac
 }
 
 render_overlay() {
