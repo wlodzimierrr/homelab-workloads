@@ -53,7 +53,7 @@ spec:
               # Skip forward-only migrations when the database is already on a
               # newer Alembic revision than this image knows about. This lets
               # image rollbacks succeed without replaying an older migration set.
-              python - <<'PY'
+              if python - <<'PY'
               import os
 
               from alembic.config import Config
@@ -82,8 +82,17 @@ spec:
                       "database is ahead of this image's migration set; "
                       f"skipping forward migration for rollback-safe sync: {unknown_heads}"
                   )
-                  raise SystemExit(0)
+                  raise SystemExit(10)
               PY
+              then
+                :
+              else
+                status=$?
+                if [ "$status" -eq 10 ]; then
+                  exit 0
+                fi
+                exit "$status"
+              fi
 
               # Idempotent forward migration with retry for transient startup races.
               for attempt in $(seq 1 10); do

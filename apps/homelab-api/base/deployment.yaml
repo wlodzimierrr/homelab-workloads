@@ -4,7 +4,7 @@ metadata:
   name: homelab-api
   namespace: homelab-api
   annotations:
-    homelab.io/migration-strategy: forward-only-skip-db-ahead
+    homelab.io/migration-strategy: forward-only-skip-db-ahead-v2
   labels:
     app.kubernetes.io/name: homelab-api
 spec:
