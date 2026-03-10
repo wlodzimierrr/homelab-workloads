@@ -50,7 +50,42 @@ spec:
               raise SystemExit(f"postgres not reachable after retries: {last_error}")
               PY
 
-              # Idempotent migration with retry for transient startup races.
+              # Skip forward-only migrations when the database is already on a
+              # newer Alembic revision than this image knows about. This lets
+              # image rollbacks succeed without replaying an older migration set.
+              python - <<'PY'
+              import os
+
+              from alembic.config import Config
+              from alembic.runtime.migration import MigrationContext
+              from alembic.script import ScriptDirectory
+              from sqlalchemy import create_engine
+
+              cfg = Config("alembic.ini")
+              script = ScriptDirectory.from_config(cfg)
+              known_revisions = {
+                  revision.revision
+                  for revision in script.walk_revisions(base="base", head="heads")
+                  if revision.revision
+              }
+              image_heads = [revision for revision in script.get_heads() if revision]
+
+              engine = create_engine(os.environ["DATABASE_URL"])
+              with engine.connect() as connection:
+                  context = MigrationContext.configure(connection)
+                  current_heads = [revision for revision in context.get_current_heads() if revision]
+
+              print(f"alembic image heads={image_heads} db heads={current_heads}")
+              unknown_heads = [revision for revision in current_heads if revision not in known_revisions]
+              if unknown_heads:
+                  print(
+                      "database is ahead of this image's migration set; "
+                      f"skipping forward migration for rollback-safe sync: {unknown_heads}"
+                  )
+                  raise SystemExit(0)
+              PY
+
+              # Idempotent forward migration with retry for transient startup races.
               for attempt in $(seq 1 10); do
                 if alembic upgrade head; then
                   exit 0

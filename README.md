@@ -193,7 +193,7 @@ The portal joins this file with project and service registry data so the Service
 
 - `postgres-statefulset.yaml` with a PVC (`volumeClaimTemplates`) for durable Postgres storage.
 - `postgres-service.yaml` for in-cluster DB connectivity.
-- `migration-job.yaml` (Argo CD Sync hook) that waits for DB readiness and runs `alembic upgrade head` with retry.
+- `migration-job.yaml` (Argo CD Sync hook) that waits for DB readiness, skips rollback replays when the database revision is newer than the current image knows about, and otherwise runs `alembic upgrade head` with retry.
 - DB-specific network policies allowing only labeled DB clients to reach Postgres on `5432`.
 
 ### Postgres credentials (SOPS standard)
