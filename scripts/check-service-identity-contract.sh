@@ -61,13 +61,44 @@ require_regex() {
 
 echo "[identity-contract] checking canonical service identity across GitOps and workload manifests..."
 
+extract_service_block() {
+  local service_id="$1"
+
+  awk -v sid="$service_id" '
+    /^[[:space:]]*- service_id:[[:space:]]*/ {
+      if (capture) {
+        exit
+      }
+      if ($0 ~ "^[[:space:]]*- service_id:[[:space:]]*" sid "$") {
+        capture=1
+      }
+    }
+    capture { print }
+  ' services.yaml
+}
+
 while IFS= read -r app_dir; do
   service_id="$(basename "$app_dir")"
+  service_block="$(extract_service_block "$service_id")"
 
   require_regex "services.yaml" "^[[:space:]]*- service_id:[[:space:]]*${service_id}$" "service catalog entry exists for ${service_id}"
   require_regex "services.yaml" "argo_app:[[:space:]]*${service_id}-dev$" "service catalog dev Argo app matches ${service_id}"
   require_regex "services.yaml" "argo_app:[[:space:]]*${service_id}-prod$" "service catalog prod Argo app matches ${service_id}"
   require_regex "services.yaml" "namespace:[[:space:]]*${service_id}$" "service catalog namespace matches ${service_id}"
+
+  if [[ -z "$service_block" ]]; then
+    fail "service catalog block can be extracted for ${service_id}"
+  elif printf '%s\n' "$service_block" | grep -Eq '^[[:space:]]*observability:[[:space:]]*$'; then
+    pass "service catalog observability block exists for ${service_id}"
+  else
+    fail "service catalog observability block exists for ${service_id}"
+  fi
+
+  if [[ -n "$service_block" ]] && printf '%s\n' "$service_block" | grep -Eq '^[[:space:]]*mode:[[:space:]]*(app-native|ingress-derived|no-http)$'; then
+    pass "service catalog observability mode is valid for ${service_id}"
+  else
+    fail "service catalog observability mode is valid for ${service_id}"
+  fi
 
   dev_app_file="environments/dev/workloads/${service_id}-app.yaml"
   require_file "$dev_app_file" "dev workload application exists for ${service_id}"

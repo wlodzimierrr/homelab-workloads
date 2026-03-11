@@ -174,8 +174,17 @@ Each entry should define:
 - `owner`
 - `repo_url`
 - `runbook_url`
+- `observability.mode`
 
 The portal joins this file with project and service registry data so the Services page can show ownership links without relying on a spreadsheet.
+
+Allowed observability modes:
+
+- `app-native`
+- `ingress-derived`
+- `no-http`
+
+See [docs/contracts/service-observability.md](/home/wlodzimierrr/homelab/docs/contracts/service-observability.md) for the contract the portal and future services should follow.
 
 ## Network policy baseline
 

@@ -21,6 +21,7 @@ class TemplateSpec:
     health_path: str
     readiness_path: str
     container_name: str
+    default_observability_mode: str
     repo_files: dict[str, str]
 
 
@@ -292,6 +293,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health",
         readiness_path="/health",
         container_name="app",
+        default_observability_mode="app-native",
         repo_files={},
     ),
     "static-nginx": TemplateSpec(
@@ -302,6 +304,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health",
         readiness_path="/health",
         container_name="web",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
 }
@@ -347,6 +350,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--service-port", type=int, default=0, help="Override the service port")
     parser.add_argument("--health-path", default="", help="Override the liveness probe path")
     parser.add_argument("--readiness-path", default="", help="Override the readiness probe path")
+    parser.add_argument(
+        "--observability-mode",
+        choices=("app-native", "ingress-derived", "no-http"),
+        default="",
+        help="Declared service observability mode written into services.yaml",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite an existing empty output repo directory")
     return parser.parse_args()
 
@@ -440,6 +449,7 @@ def append_service_catalog_entry(
     runbook_url: str,
     description: str,
     namespace: str,
+    observability_mode: str,
 ) -> None:
     if catalog_path.exists():
         existing = catalog_path.read_text(encoding="utf-8")
@@ -459,6 +469,8 @@ def append_service_catalog_entry(
         f"    repo_url: {yaml_string(repo_url)}\n"
         f"    runbook_url: {yaml_string(runbook_url)}\n"
         f"    description: {yaml_string(description)}\n"
+        "    observability:\n"
+        f"      mode: {observability_mode}\n"
         "    envs:\n"
         "      - name: dev\n"
         f"        namespace: {namespace}\n"
@@ -1139,6 +1151,7 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
         runbook_url=args.runbook_url or args.repo_url,
         description=args.description,
         namespace=namespace,
+        observability_mode=args.observability_mode or template.default_observability_mode,
     )
 
 
@@ -1155,6 +1168,7 @@ def main() -> None:
         health_path=args.health_path or base_template.health_path,
         readiness_path=args.readiness_path or base_template.readiness_path,
         container_name=base_template.container_name,
+        default_observability_mode=base_template.default_observability_mode,
         repo_files=base_template.repo_files,
     )
     namespace = args.namespace or args.name

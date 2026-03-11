@@ -4,6 +4,8 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_root="$(mktemp -d)"
 trap 'rm -rf "$tmp_root"' EXIT
+smoke_home="$tmp_root/home"
+mkdir -p "$smoke_home"
 
 gitops_root="$tmp_root/workloads"
 repo_output_dir="$tmp_root/scaffold-smoke-repo"
@@ -42,13 +44,14 @@ done
 
 grep -q "service_id: scaffold-smoke" "$gitops_root/services.yaml"
 grep -q "repo_url: 'https://github.com/example/scaffold-smoke'" "$gitops_root/services.yaml"
+grep -q "mode: app-native" "$gitops_root/services.yaml"
 
-"$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/dev" >/dev/null
-"$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/prod" >/dev/null
-"$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/dev" >/dev/null
-"$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/prod" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/prod" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/prod" >/dev/null
 
-"$gitops_root/scripts/check-environment-contract.sh" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/check-environment-contract.sh" >/dev/null
 "$gitops_root/scripts/check-rbac-guardrails.sh" >/dev/null
 "$gitops_root/scripts/check-secrets-guardrails.sh" >/dev/null
 

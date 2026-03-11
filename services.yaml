@@ -5,6 +5,8 @@ services:
     repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/backend
     runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-api-service-operations.md
     description: FastAPI backend for the homelab portal and service metadata APIs.
+    observability:
+      mode: app-native
     envs:
       - name: dev
         namespace: homelab-api
@@ -18,6 +20,8 @@ services:
     repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/frontend
     runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-web-service-operations.md
     description: React frontend for the homelab portal UI.
+    observability:
+      mode: ingress-derived
     envs:
       - name: dev
         namespace: homelab-web
