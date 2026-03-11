@@ -4,6 +4,7 @@ resources:
   - ../../base
 generators:
   - postgres-secret-generator.yaml
+  - github-actions-secret-generator.yaml
 commonLabels:
   homelab.env: dev
 patches:

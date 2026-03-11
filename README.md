@@ -218,6 +218,25 @@ Bootstrap helper:
 ./scripts/render-kustomize.sh apps/homelab-api/envs/dev >/dev/null
 ```
 
+### Portal rollback dispatch token (SOPS standard)
+
+`homelab-api` uses a GitHub Actions dispatch token only in the dev overlay so the portal backend can trigger Git-backed promote/rollback workflows.
+
+Repository standard:
+
+1. Store the token only as a SOPS-encrypted secret manifest.
+2. Keep the live Secret name `homelab-api-github-actions`.
+3. Expose only `PORTAL_GITHUB_ACTIONS_TOKEN` to the API container.
+
+Bootstrap helper:
+
+```bash
+./scripts/bootstrap-sops-github-actions-token.sh --from-cluster dev
+./scripts/render-kustomize.sh apps/homelab-api/envs/dev >/dev/null
+```
+
+Replace the bootstrap source with a dedicated fine-grained or classic PAT limited to the portal/workloads workflow dispatch path when you rotate credentials.
+
 ### Private GHCR image pulls
 
 If `homelab-api` images are private in GHCR, create a pull secret in the `homelab-api` namespace and reference it as `ghcr-pull-secret`:
