@@ -46,5 +46,6 @@ jobs:
         run: |
           ./scripts/check-rbac-guardrails.sh
           ./scripts/check-secrets-guardrails.sh
+          ./scripts/check-service-identity-contract.sh
           ./scripts/check-environment-contract.sh
           ./scripts/smoke-test-scaffold-generator.sh
