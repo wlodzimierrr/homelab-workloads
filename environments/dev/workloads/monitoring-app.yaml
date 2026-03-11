@@ -37,6 +37,8 @@ spec:
             server:
               domain: monitoring.homelab.local
               root_url: http://monitoring.homelab.local
+            security:
+              allow_embedding: true
           persistence:
             enabled: true
             size: 2Gi
@@ -260,6 +262,132 @@ spec:
                         },
                         "options": {
                           "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}
+                        }
+                      }
+                    ]
+                  }
+              portal-service-embeds:
+                json: |
+                  {
+                    "id": null,
+                    "uid": "portal-service-embeds",
+                    "title": "Portal Service Embeds",
+                    "tags": ["homelab", "portal", "embed"],
+                    "timezone": "browser",
+                    "schemaVersion": 39,
+                    "version": 1,
+                    "refresh": "30s",
+                    "editable": true,
+                    "time": {
+                      "from": "now-6h",
+                      "to": "now"
+                    },
+                    "templating": {
+                      "list": [
+                        {
+                          "name": "service",
+                          "label": "Service ID",
+                          "type": "textbox",
+                          "query": "homelab-api",
+                          "current": {"text": "homelab-api", "value": "homelab-api"}
+                        },
+                        {
+                          "name": "namespace",
+                          "label": "Namespace",
+                          "type": "textbox",
+                          "query": "homelab-api",
+                          "current": {"text": "homelab-api", "value": "homelab-api"}
+                        },
+                        {
+                          "name": "app",
+                          "label": "App Label",
+                          "type": "textbox",
+                          "query": "homelab-api",
+                          "current": {"text": "homelab-api", "value": "homelab-api"}
+                        },
+                        {
+                          "name": "env",
+                          "label": "Environment",
+                          "type": "textbox",
+                          "query": "dev",
+                          "current": {"text": "dev", "value": "dev"}
+                        },
+                        {
+                          "name": "argoApp",
+                          "label": "Argo App",
+                          "type": "textbox",
+                          "query": "homelab-api-dev",
+                          "current": {"text": "homelab-api-dev", "value": "homelab-api-dev"}
+                        }
+                      ]
+                    },
+                    "panels": [
+                      {
+                        "id": 2,
+                        "type": "timeseries",
+                        "title": "P95 Latency Trend",
+                        "description": "Primary app metric with Traefik fallback for the selected service scope.",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 9, "w": 24, "x": 0, "y": 0},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "1000 * (histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", app=\"$app\"}[5m]))) or histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\".*$app.*\"}[5m]))))",
+                            "legendFormat": "{{app}} p95"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "unit": "ms",
+                            "min": 0,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "green", "value": null},
+                                {"color": "yellow", "value": 250},
+                                {"color": "red", "value": 500}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+                          "tooltip": {"mode": "multi", "sort": "none"}
+                        }
+                      },
+                      {
+                        "id": 3,
+                        "type": "timeseries",
+                        "title": "Error Rate Trend",
+                        "description": "Primary app metric with Traefik fallback for the selected service scope.",
+                        "datasource": {"type": "prometheus", "uid": "prometheus"},
+                        "gridPos": {"h": 9, "w": 24, "x": 0, "y": 9},
+                        "targets": [
+                          {
+                            "refId": "A",
+                            "expr": "100 * ((((sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\", status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\"}[5m])), 0.000001))) or (((sum(rate(traefik_service_requests_total{service=~\".*$app.*\", code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(traefik_service_requests_total{service=~\".*$app.*\"}[5m])), 0.000001))))",
+                            "legendFormat": "{{app}} errors"
+                          }
+                        ],
+                        "fieldConfig": {
+                          "defaults": {
+                            "unit": "percent",
+                            "min": 0,
+                            "thresholds": {
+                              "mode": "absolute",
+                              "steps": [
+                                {"color": "green", "value": null},
+                                {"color": "yellow", "value": 1},
+                                {"color": "red", "value": 3}
+                              ]
+                            }
+                          },
+                          "overrides": []
+                        },
+                        "options": {
+                          "legend": {"displayMode": "list", "placement": "bottom", "showLegend": true},
+                          "tooltip": {"mode": "multi", "sort": "none"}
                         }
                       }
                     ]
