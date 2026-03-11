@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/wlodzimierrr/homelab-web:sha-e1eec1c85d94d8f8b274dbd82fbf8dc0e9a69a8e
+          image: ghcr.io/wlodzimierrr/homelab-web:sha-bd1d9a3d7066173796411bb029ee465254109ab1
           resources:
             requests:
               cpu: 50m
