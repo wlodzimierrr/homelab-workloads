@@ -332,7 +332,7 @@ spec:
                         "targets": [
                           {
                             "refId": "A",
-                            "expr": "1000 * (histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", app=\"$app\"}[5m]))) or histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\".*$app.*\"}[5m]))))",
+                            "expr": "1000 * histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\".*$app.*\"}[5m])))",
                             "legendFormat": "{{app}} p95"
                           }
                         ],
@@ -366,7 +366,7 @@ spec:
                         "targets": [
                           {
                             "refId": "A",
-                            "expr": "100 * ((((sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\", status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{namespace=\"$namespace\", app=\"$app\"}[5m])), 0.000001))) or (((sum(rate(traefik_service_requests_total{service=~\".*$app.*\", code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(traefik_service_requests_total{service=~\".*$app.*\"}[5m])), 0.000001))))",
+                            "expr": "100 * ((sum(rate(traefik_service_requests_total{service=~\".*$app.*\", code=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(traefik_service_requests_total{service=~\".*$app.*\"}[5m])), 0.000001))",
                             "legendFormat": "{{app}} errors"
                           }
                         ],
