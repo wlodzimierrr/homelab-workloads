@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - ../../base
 generators:
+  - ghcr-read-token-secret-generator.yaml
   - git-github-token-secret-generator.yaml
   - postgres-secret-generator.yaml
   - github-actions-secret-generator.yaml

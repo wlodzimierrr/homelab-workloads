@@ -26,3 +26,9 @@ spec:
                   name: homelab-api-git-github
                   key: GIT_GITHUB_TOKEN
                   optional: true
+            - name: GHCR_READ_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: homelab-api-ghcr-read
+                  key: GHCR_READ_TOKEN
+                  optional: true
