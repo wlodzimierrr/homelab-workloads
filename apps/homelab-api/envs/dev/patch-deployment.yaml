@@ -20,3 +20,9 @@ spec:
                 secretKeyRef:
                   name: homelab-api-github-actions
                   key: PORTAL_GITHUB_ACTIONS_TOKEN
+            - name: GIT_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: homelab-api-git-github
+                  key: GIT_GITHUB_TOKEN
+                  optional: true

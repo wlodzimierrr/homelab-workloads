@@ -265,6 +265,31 @@ Bootstrap helper:
 
 Replace the bootstrap source with a dedicated fine-grained or classic PAT limited to the portal/workloads workflow dispatch path when you rotate credentials.
 
+### Portal Git write token (SOPS standard)
+
+`homelab-api` also supports a separate fine-scoped GitHub token for direct GitHub API writes to `homelab-workloads`.
+
+Repository standard:
+
+1. Store the token only as a SOPS-encrypted secret manifest.
+2. Keep the live Secret name `homelab-api-git-github`.
+3. Expose only `GIT_GITHUB_TOKEN` to the API container.
+4. Limit the token to the single workloads repository with `Contents`, `Pull requests`, and `Metadata` access only.
+
+Bootstrap helper:
+
+```bash
+./scripts/bootstrap-sops-git-github-token.sh --prompt dev
+./scripts/render-kustomize.sh apps/homelab-api/envs/dev >/dev/null
+```
+
+Dry-run verifier:
+
+```bash
+cd ../apps/portal/backend
+GIT_GITHUB_TOKEN=... ./.venv/bin/python scripts/verify_git_github_token.py
+```
+
 ### Private GHCR image pulls
 
 If `homelab-api` images are private in GHCR, create a pull secret in the `homelab-api` namespace and reference it as `ghcr-pull-secret`:
