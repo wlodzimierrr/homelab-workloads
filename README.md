@@ -175,6 +175,12 @@ Each entry should define:
 - `repo_url`
 - `runbook_url`
 - `observability.mode`
+- `envs[*].namespace`
+
+Optional for support services that live under another top-level app:
+
+- `envs[*].app_label`
+- `envs[*].workload_ref`
 
 The portal joins this file with project and service registry data so the Services page can show ownership links without relying on a spreadsheet.
 
@@ -185,6 +191,19 @@ Allowed observability modes:
 - `no-http`
 
 See [docs/contracts/service-observability.md](/home/wlodzimierrr/homelab/docs/contracts/service-observability.md) for the contract the portal and future services should follow.
+
+Support-service example:
+
+```yaml
+  - service_id: oauth2-proxy
+    observability:
+      mode: no-http
+    envs:
+      - name: dev
+        namespace: homelab-web
+        app_label: oauth2-proxy
+        workload_ref: apps/homelab-web/envs/dev/oauth2-proxy.yaml
+```
 
 ## Network policy baseline
 

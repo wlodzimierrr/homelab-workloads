@@ -29,3 +29,17 @@ services:
       - name: prod
         namespace: homelab-web
         argo_app: homelab-web-prod
+  - service_id: oauth2-proxy
+    name: OAuth2 Proxy
+    owner: wlodzimierrr
+    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/workloads/apps/homelab-web/envs/dev
+    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/oidc-setup.md
+    description: Support service providing ForwardAuth and login flows for the homelab web ingress.
+    observability:
+      mode: no-http
+    envs:
+      - name: dev
+        namespace: homelab-web
+        app_label: oauth2-proxy
+        argo_app: homelab-web-dev
+        workload_ref: apps/homelab-web/envs/dev/oauth2-proxy.yaml
