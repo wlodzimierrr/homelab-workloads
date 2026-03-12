@@ -32,3 +32,14 @@ spec:
                   name: homelab-api-ghcr-read
                   key: GHCR_READ_TOKEN
                   optional: true
+            - name: SOPS_AGE_KEY_FILE
+              value: /var/run/secrets/sops-age/keys.txt
+          volumeMounts:
+            - name: sops-age-key
+              mountPath: /var/run/secrets/sops-age
+              readOnly: true
+      volumes:
+        - name: sops-age-key
+          secret:
+            secretName: homelab-api-sops-age
+            optional: true
