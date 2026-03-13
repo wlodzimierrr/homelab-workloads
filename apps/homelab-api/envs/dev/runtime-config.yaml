@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homelab-api-runtime-config
+  namespace: homelab-api
+data:
+  LOG_LEVEL: debug

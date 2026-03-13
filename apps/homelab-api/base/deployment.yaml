@@ -41,7 +41,10 @@ spec:
             - name: APP_ENV
               value: base
             - name: LOG_LEVEL
-              value: info
+              valueFrom:
+                configMapKeyRef:
+                  name: homelab-api-runtime-config
+                  key: LOG_LEVEL
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:

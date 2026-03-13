@@ -13,8 +13,6 @@ spec:
           env:
             - name: APP_ENV
               value: prod
-            - name: LOG_LEVEL
-              value: warning
           resources:
             requests:
               cpu: 250m
