@@ -8,36 +8,39 @@ spec:
   template:
     spec:
       containers:
-        - name: api
-          image: ghcr.io/wlodzimierrr/homelab-api:sha-b8eeef0ee4abf3588e484b90e5f24b49fe70a6a6
-          env:
-            - name: APP_ENV
-              value: dev
-            - name: PORTAL_GITHUB_ACTIONS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: homelab-api-github-actions
-                  key: PORTAL_GITHUB_ACTIONS_TOKEN
-            - name: GIT_GITHUB_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: homelab-api-git-github
-                  key: GIT_GITHUB_TOKEN
-                  optional: true
-            - name: GHCR_READ_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: homelab-api-ghcr-read
-                  key: GHCR_READ_TOKEN
-                  optional: true
-            - name: SOPS_AGE_KEY_FILE
-              value: /var/run/secrets/sops-age/keys.txt
-          volumeMounts:
-            - name: sops-age-key
-              mountPath: /var/run/secrets/sops-age
-              readOnly: true
-      volumes:
+      - name: api
+        image: ghcr.io/wlodzimierrr/homelab-api:sha-b8eeef0ee4abf3588e484b90e5f24b49fe70a6a6
+        env:
+        - name: APP_ENV
+          value: dev
+        - name: PORTAL_GITHUB_ACTIONS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: homelab-api-github-actions
+              key: PORTAL_GITHUB_ACTIONS_TOKEN
+        - name: GIT_GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: homelab-api-git-github
+              key: GIT_GITHUB_TOKEN
+              optional: true
+        - name: GHCR_READ_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: homelab-api-ghcr-read
+              key: GHCR_READ_TOKEN
+              optional: true
+        - name: SOPS_AGE_KEY_FILE
+          value: /var/run/secrets/sops-age/keys.txt
+        volumeMounts:
         - name: sops-age-key
-          secret:
-            secretName: homelab-api-sops-age
-            optional: true
+          mountPath: /var/run/secrets/sops-age
+          readOnly: true
+      volumes:
+      - name: sops-age-key
+        secret:
+          secretName: homelab-api-sops-age
+          optional: true
+    metadata:
+      annotations:
+        checksum/config: 7fd9dfebb7127f4e01cbe456bdb90e72
