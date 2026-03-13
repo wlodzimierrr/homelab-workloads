@@ -4,4 +4,4 @@ metadata:
   name: homelab-api-runtime-config
   namespace: homelab-api
 data:
-  LOG_LEVEL: warning
+  LOG_LEVEL: info

@@ -43,4 +43,4 @@ spec:
           optional: true
     metadata:
       annotations:
-        checksum/config: 7fd9dfebb7127f4e01cbe456bdb90e72
+        checksum/config: 71c9e380e2b14d991a4f510ee60cbd76
