@@ -356,6 +356,23 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Declared service observability mode written into services.yaml",
     )
+    parser.add_argument(
+        "--add-on",
+        choices=("database",),
+        default="",
+        help="Optional service add-on to scaffold",
+    )
+    parser.add_argument(
+        "--db-engine",
+        choices=("postgres", "mysql"),
+        default="postgres",
+        help="Database engine for the database add-on (postgres or mysql)",
+    )
+    parser.add_argument(
+        "--migration-command",
+        default="",
+        help="Optional database migration command; for postgres defaults to 'alembic upgrade head', for mysql skipped unless provided",
+    )
     parser.add_argument("--force", action="store_true", help="Overwrite an existing empty output repo directory")
     return parser.parse_args()
 
@@ -483,6 +500,448 @@ def append_service_catalog_entry(
     catalog_path.write_text(existing + suffix + entry, encoding="utf-8")
 
 
+def gitops_database_files(
+    *,
+    name: str,
+    namespace: str,
+    db_engine: str,
+    image_repo: str,
+    base_tag: str,
+    migration_command: str = "",
+) -> dict[str, str]:
+    """Generate database add-on manifests for the service."""
+    db_name = f"{name}-{db_engine}"
+    db_service_name = f"{db_name}"
+    db_port = 5432 if db_engine == "postgres" else 3306
+    db_container_port_str = str(db_port)
+    db_image = "postgres:17.6" if db_engine == "postgres" else "mysql:8.0"
+
+    files: dict[str, str] = {}
+
+    # Database Secret template (SOPS-encrypted stub)
+    if db_engine == "postgres":
+        files[f"{db_name}-secret.env.example"] = dedent(
+            """
+            # SOPS-encrypted secret stub for {db_name}
+            # Fill in the placeholder values, then encrypt with:
+            #   sops -e {db_name}-secret.env > {db_name}-secret.enc.env
+            # See docs/runbooks/sops-secrets.md for the full SOPS setup.
+            POSTGRES_USER=appuser
+            POSTGRES_PASSWORD=changeme
+            POSTGRES_DB={name}_db
+            """,
+        ).format(db_name=db_name, name=name)
+        files[f"{db_name}-secret.enc.yaml"] = dedent(
+            """
+            # SOPS-encrypted Secret stub
+            # Populate this with encrypted credentials; see {db_name}-secret.env.example
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {db_name}
+              namespace: {namespace}
+            type: Opaque
+            stringData:
+              POSTGRES_USER: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              POSTGRES_PASSWORD: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              POSTGRES_DB: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+            sops:
+              kms: []
+              gcp_kms: []
+              azure_kv: []
+              hc_vault: []
+              age:
+                - recipient: age1xxx
+                  enc: |
+                    -----BEGIN AGE ENCRYPTED FILE-----
+                    ...
+                    -----END AGE ENCRYPTED FILE-----
+              lastmodified: "2026-03-12T00:00:00Z"
+              mac: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              pgp: []
+              encrypted_regex: ^(stringData|data)$
+              version: 3.8.1
+            """,
+        ).format(db_name=db_name,namespace=namespace)
+    else:  # mysql
+        files[f"{db_name}-secret.env.example"] = dedent(
+            """
+            # SOPS-encrypted secret stub for {db_name}
+            # Fill in the placeholder values, then encrypt with:
+            #   sops -e {db_name}-secret.env > {db_name}-secret.enc.env
+            # See docs/runbooks/sops-secrets.md for the full SOPS setup.
+            MYSQL_ROOT_PASSWORD=changeme
+            MYSQL_USER=appuser
+            MYSQL_PASSWORD=changeme
+            MYSQL_DATABASE={name}_db
+            """,
+        ).format(db_name=db_name, name=name)
+        files[f"{db_name}-secret.enc.yaml"] = dedent(
+            """
+            # SOPS-encrypted Secret stub
+            # Populate this with encrypted credentials; see {db_name}-secret.env.example
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {db_name}
+              namespace: {namespace}
+            type: Opaque
+            stringData:
+              MYSQL_ROOT_PASSWORD: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              MYSQL_USER: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              MYSQL_PASSWORD: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              MYSQL_DATABASE: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+            sops:
+              kms: []
+              gcp_kms: []
+              azure_kv: []
+              hc_vault: []
+              age:
+                - recipient: age1xxx
+                  enc: |
+                    -----BEGIN AGE ENCRYPTED FILE-----
+                    ...
+                    -----END AGE ENCRYPTED FILE-----
+              lastmodified: "2026-03-12T00:00:00Z"
+              mac: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              pgp: []
+              encrypted_regex: ^(stringData|data)$
+              version: 3.8.1
+            """,
+        ).format(db_name=db_name, namespace=namespace)
+
+    # Database Service
+    files[f"{db_service_name}-service.yaml"] = render_template(
+        """
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: {db_service_name}
+          namespace: {namespace}
+          labels:
+            app.kubernetes.io/name: {name}
+            app.kubernetes.io/component: {db_engine}
+        spec:
+          clusterIP: None
+          selector:
+            app.kubernetes.io/name: {name}
+            app.kubernetes.io/component: {db_engine}
+          ports:
+            - name: {db_engine}
+              port: {db_port}
+              targetPort: {db_engine}
+        """,
+        db_service_name=db_service_name,
+        namespace=namespace,
+        name=name,
+        db_engine=db_engine,
+        db_port=db_container_port_str,
+    )
+
+    # Database StatefulSet
+    if db_engine == "postgres":
+        startup_probe = dedent(
+            """
+            startupProbe:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - pg_isready -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+              periodSeconds: 2
+              timeoutSeconds: 2
+              failureThreshold: 30
+            readinessProbe:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - pg_isready -h 127.0.0.1 -p 5432 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 6
+            """
+        )
+    else:  # mysql
+        startup_probe = dedent(
+            """
+            startupProbe:
+              exec:
+                command:
+                  - mysqladmin
+                  - ping
+                  - -h
+                  - 127.0.0.1
+              periodSeconds: 2
+              timeoutSeconds: 2
+              failureThreshold: 30
+            readinessProbe:
+              exec:
+                command:
+                  - mysqladmin
+                  - ping
+                  - -h
+                  - 127.0.0.1
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 6
+            """
+        )
+
+    mount_dir = "/var/lib/postgresql/data" if db_engine == "postgres" else "/var/lib/mysql"
+    
+    files[f"{db_name}-statefulset.yaml"] = f"""apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {db_name}
+  namespace: {namespace}
+  labels:
+    app.kubernetes.io/name: {name}
+    app.kubernetes.io/component: {db_engine}
+spec:
+  serviceName: {db_service_name}
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {name}
+      app.kubernetes.io/component: {db_engine}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {name}
+        app.kubernetes.io/component: {db_engine}
+    spec:
+      containers:
+        - name: {db_engine}
+          image: {db_image}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: {db_engine}
+              containerPort: {db_port}
+          envFrom:
+            - secretRef:
+                name: {db_name}
+{indent_block(startup_probe.rstrip(), 10)}
+          volumeMounts:
+            - name: {db_engine}-data
+              mountPath: {mount_dir}
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: {db_engine}-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+"""
+
+    # NetworkPolicy allowing app to reach database
+    files[f"networkpolicy-allow-{db_engine}-egress.yaml"] = render_template(
+        """
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-{db_engine}-egress
+          namespace: {namespace}
+        spec:
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {name}
+              app.kubernetes.io/component: app
+          policyTypes:
+            - Egress
+          egress:
+            - to:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name:  {name}
+                      app.kubernetes.io/component: {db_engine}
+              ports:
+                - protocol: TCP
+                  port: {db_port}
+        """,
+        db_engine=db_engine,
+        namespace=namespace,
+        name=name,
+        db_port=db_container_port_str,
+    )
+
+    # NetworkPolicy allowing database to receive from app
+    files[f"networkpolicy-allow-{db_engine}-ingress.yaml"] = render_template(
+        """
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        metadata:
+          name: allow-{db_engine}-ingress
+          namespace: {namespace}
+        spec:
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: {name}
+              app.kubernetes.io/component: {db_engine}
+          policyTypes:
+            - Ingress
+          ingress:
+            - from:
+                - podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: {name}
+                      app.kubernetes.io/component: app
+              ports:
+                - protocol: TCP
+                  port: {db_port}
+        """,
+        db_engine=db_engine,
+        namespace=namespace,
+        name=name,
+        db_port=db_container_port_str,
+    )
+
+    # Migration/Init job (optional, only if migration_command is provided or db_engine is postgres)
+    if migration_command or db_engine == "postgres":
+        migration_cmd = migration_command or "alembic upgrade head"
+        if db_engine == "postgres":
+            job_content = render_template(
+                """
+                apiVersion: batch/v1
+                kind: Job
+                metadata:
+                  name: {name}-migrate
+                  namespace: {namespace}
+                  labels:
+                    app.kubernetes.io/name: {name}
+                    app.kubernetes.io/component: migration
+                  annotations:
+                    argocd.argoproj.io/hook: Sync
+                    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+                spec:
+                  backoffLimit: 3
+                  activeDeadlineSeconds: 600
+                  template:
+                    metadata:
+                      labels:
+                        app.kubernetes.io/name: {name}
+                        app.kubernetes.io/component: migration
+                        homelab.io/db-client: "true"
+                    spec:
+                      serviceAccountName: {name}-backend
+                      restartPolicy: OnFailure
+                      containers:
+                        - name: migrate
+                          image: {image_repo}:{base_tag}
+                          imagePullPolicy: IfNotPresent
+                          command:
+                            - /bin/sh
+                            - -c
+                            - |
+                              set -eu
+                              
+                              # Wait until the Postgres service accepts TCP connections
+                              python3 - <<'PY'
+                              import socket
+                              import time
+
+                              host = "{db_service_name}"
+                              port = 5432
+                              for attempt in range(1, 61):
+                                  try:
+                                      with socket.create_connection((host, port), timeout=2):
+                                          print(f"postgres reachable on attempt {{attempt}}")
+                                          raise SystemExit(0)
+                                  except OSError:
+                                      time.sleep(2)
+                              raise SystemExit("postgres not reachable after retries")
+                              PY
+                              
+                              # Run migration command
+                              {migration_cmd}
+                          env:
+                            - name: DATABASE_URL
+                              valueFrom:
+                                secretKeyRef:
+                                  name: {db_name}
+                                  key: DATABASE_URL
+                """,
+                name=name,
+                namespace=namespace,
+                image_repo=image_repo,
+                base_tag=base_tag,
+                db_service_name=db_service_name,
+                migration_cmd=migration_cmd,
+                db_name=db_name,
+            )
+        else:  # mysql
+            job_content = render_template(
+                """
+                apiVersion: batch/v1
+                kind: Job
+                metadata:
+                  name: {name}-init
+                  namespace: {namespace}
+                  labels:
+                    app.kubernetes.io/name: {name}
+                    app.kubernetes.io/component: init
+                  annotations:
+                    argocd.argoproj.io/hook: Sync
+                    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+                spec:
+                  backoffLimit: 3
+                  activeDeadlineSeconds: 600
+                  template:
+                    metadata:
+                      labels:
+                        app.kubernetes.io/name: {name}
+                        app.kubernetes.io/component: init
+                    spec:
+                      serviceAccountName: {name}-backend
+                      restartPolicy: OnFailure
+                      containers:
+                        - name: init
+                          image: mysql:8.0
+                          imagePullPolicy: IfNotPresent
+                          command:
+                            - /bin/sh
+                            - -c
+                            - |
+                              set -eu
+                              
+                              # Wait for MySQL to be ready
+                              for i in $(seq 1 60); do
+                                  if mysqladmin ping -h {db_service_name} -u root -p"$MYSQL_ROOT_PASSWORD" >/dev/null 2>&1; then
+                                      echo "mysql reachable on attempt $i"
+                                      break
+                                  fi
+                                  sleep 2
+                              done
+                              
+                              # Run init command
+                              {migration_cmd}
+                          env:
+                            - name: MYSQL_ROOT_PASSWORD
+                              valueFrom:
+                                secretKeyRef:
+                                  name: {db_name}
+                                  key: MYSQL_ROOT_PASSWORD
+                """,
+                name=name,
+                namespace=namespace,
+                db_service_name=db_service_name,
+                migration_cmd=migration_cmd,
+                db_name=db_name,
+            )
+        files[f"{name}-{'migrate' if db_engine == 'postgres' else 'init'}-job.yaml"] = job_content
+
+    return files
+
+
 def gitops_base_files(
     *,
     name: str,
@@ -494,6 +953,7 @@ def gitops_base_files(
     description: str,
     image_pull_secret: str,
     dev_host: str,
+    add_app_component_label: bool = False,
 ) -> dict[str, str]:
     serviceaccount = render_template(
         """
@@ -544,6 +1004,7 @@ def gitops_base_files(
         f"  namespace: {namespace}",
         "  labels:",
         f"    app.kubernetes.io/name: {name}",
+        "    app.kubernetes.io/component: main-app" if add_app_component_label else None,
         "spec:",
         "  replicas: 1",
         "  selector:",
@@ -553,6 +1014,7 @@ def gitops_base_files(
         "    metadata:",
         "      labels:",
         f"        app.kubernetes.io/name: {name}",
+        "        app.kubernetes.io/component: main-app" if add_app_component_label else None,
         "    spec:",
         f"      serviceAccountName: {name}",
         "      containers:",
@@ -612,7 +1074,7 @@ def gitops_base_files(
             name=name,
         ),
         "serviceaccount.yaml": serviceaccount,
-        "deployment.yaml": "\n".join(deployment_lines) + "\n",
+        "deployment.yaml": "\n".join(line for line in deployment_lines if line is not None) + "\n",
         "service.yaml": render_template(
             """
             apiVersion: v1
@@ -1097,7 +1559,41 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
         description=args.description,
         image_pull_secret=args.image_pull_secret,
         dev_host=dev_host,
+        add_app_component_label=hasattr(args, 'add_on') and args.add_on == 'database',
     )
+    
+    # Add database addon if requested
+    if hasattr(args, 'add_on') and args.add_on == 'database':
+        db_engine = getattr(args, 'db_engine', 'postgres')
+        migration_command = getattr(args, 'migration_command', '')
+        db_addon_files = gitops_database_files(
+            name=args.name,
+            namespace=namespace,
+            db_engine=db_engine,
+            image_repo=args.image_repo,
+            base_tag=args.dev_tag,
+            migration_command=migration_command,
+        )
+        base_files.update(db_addon_files)
+        
+        # Update kustomization.yaml to include database resources
+        kustomization_content = base_files['kustomization.yaml']
+        db_addon_resources = [
+            f"  - {args.name}-{db_engine}-statefulset.yaml",
+            f"  - {args.name}-{db_engine}-service.yaml",
+            f"  - networkpolicy-allow-{db_engine}-egress.yaml",
+            f"  - networkpolicy-allow-{db_engine}-ingress.yaml",
+            f"  - {args.name}-{db_engine}-secret.enc.yaml",
+        ]
+        if migration_command or db_engine == 'postgres':
+            db_addon_resources.append(
+                f"  - {args.name}-{'migrate' if db_engine == 'postgres' else 'init'}-job.yaml"
+            )
+        
+        # Insert database resources before the final resources
+        kustomization_content = kustomization_content.rstrip() + "\n" + "\n".join(db_addon_resources) + "\n"
+        base_files['kustomization.yaml'] = kustomization_content
+    
     for relative_path, content in base_files.items():
         write_file(app_root / "base" / relative_path, content)
 
