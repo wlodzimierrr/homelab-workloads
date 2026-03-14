@@ -164,6 +164,32 @@ Generator smoke test:
 ./scripts/smoke-test-scaffold-generator.sh
 ```
 
+The smoke test includes a run of `validate-services-catalog.py` against the post-scaffold `services.yaml`, so catalog schema errors are caught in CI.
+
+## Catalog validator
+
+`scripts/validate-services-catalog.py` validates `services.yaml` against the catalog schema.
+
+```bash
+python3 scripts/validate-services-catalog.py
+# or with an explicit path:
+python3 scripts/validate-services-catalog.py --catalog services.yaml
+```
+
+Requires `pyyaml` (`pip install pyyaml`). Exits 0 on success, 1 on any failure.
+
+Checks enforced:
+
+- Top-level `services` list is present and non-empty.
+- Each `service_id` matches `^[a-z][a-z0-9-]+$` and is unique across the catalog.
+- Required fields: `service_id`, `description`, `repo_url`, `runbook_url`, `observability`, `envs`.
+- `observability.mode` is one of `app-native`, `ingress-derived`, `no-http`.
+- Optional `tags` field, if present, must be a list of strings.
+- Optional `owner_email` field, if present, must be a non-empty string.
+- Each service has at least one env entry; env `name` is one of `dev`, `prod`; no duplicate env names per service.
+- Required env fields: `name`, `namespace`, `argo_app`.
+- `argo_app` is a non-empty string (shared argo apps across co-deployed services are allowed).
+
 ## Service catalog metadata
 
 `services.yaml` is the Git-backed source for lightweight portal catalog metadata.

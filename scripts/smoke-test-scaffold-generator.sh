@@ -57,5 +57,6 @@ CI=true HOME="$smoke_home" "$gitops_root/scripts/check-environment-contract.sh" 
 "$gitops_root/scripts/check-service-identity-contract.sh" >/dev/null
 "$gitops_root/scripts/check-rbac-guardrails.sh" >/dev/null
 "$gitops_root/scripts/check-secrets-guardrails.sh" >/dev/null
+python3 "$gitops_root/scripts/validate-services-catalog.py" --catalog "$gitops_root/services.yaml" >/dev/null
 
 echo "scaffold generator smoke test passed"
