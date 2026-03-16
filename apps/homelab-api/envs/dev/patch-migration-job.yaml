@@ -8,4 +8,4 @@ spec:
     spec:
       containers:
         - name: migrate
-          image: ghcr.io/wlodzimierrr/homelab-api:sha-541db192d7f15265720d3a58a664365876d2c5d3
+          image: ghcr.io/wlodzimierrr/homelab-api:sha-9ef06e5cb042d7612be86e9c67e4f41a0c9aa11b
