@@ -82,7 +82,22 @@ require_regex "environments/prod/kustomization.yaml" '^[[:space:]]*-[[:space:]]*
 require_regex "environments/dev/workloads/homelab-api-app.yaml" '^    path: apps/homelab-api/envs/dev$' "dev API app points to dev overlay"
 require_regex "environments/dev/workloads/homelab-web-app.yaml" '^    path: apps/homelab-web/envs/dev$' "dev web app points to dev overlay"
 require_regex "environments/prod/workloads-app.yaml" 'allowEmpty:[[:space:]]*true' "prod workloads app stays allowEmpty in single-cluster safety mode"
-require_regex "environments/prod/workloads/kustomization.yaml" '^resources:[[:space:]]*\[\]$' "prod workloads path remains empty in single-cluster safety mode"
+
+# Prod workloads kustomization may only contain StatefulSet-based (database) services.
+# HTTP services must go through the gated-promotion workflow instead.
+mapfile -t prod_resources < <(grep -E '^\s*-\s+\S' environments/prod/workloads/kustomization.yaml | sed 's/^\s*-\s*//' || true)
+if [[ "${#prod_resources[@]}" -eq 0 ]]; then
+  pass "prod workloads kustomization is empty (single-cluster safety mode active)"
+else
+  for resource in "${prod_resources[@]}"; do
+    service_name="${resource%-app.yaml}"
+    if [[ -f "apps/${service_name}/base/statefulset.yaml" ]]; then
+      pass "prod workloads kustomization entry ${resource} is a database service"
+    else
+      fail "prod workloads kustomization contains non-database service ${service_name} — HTTP services must use gated-promotion"
+    fi
+  done
+fi
 
 echo "[env-contract] checking overlay identity labels..."
 for env_name in dev prod; do
