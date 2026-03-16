@@ -4,3 +4,5 @@ resources:
   - ../../base
 commonLabels:
   homelab.env: prod
+patches:
+  - path: patch-service-lb.yaml
