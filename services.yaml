@@ -43,3 +43,16 @@ services:
         app_label: oauth2-proxy
         argo_app: homelab-web-dev
         workload_ref: apps/homelab-web/envs/dev/oauth2-proxy.yaml
+  - service_id: homelab-database
+    name: 'Homelab Database'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/homelab-workloads.git'
+    runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads.git'
+    description: 'database for homelab'
+    observability:
+      mode: ingress-derived
+    envs:
+      - name: prod
+        namespace: homelab-database
+        argo_app: homelab-database-prod

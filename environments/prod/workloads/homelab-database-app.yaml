@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-database-prod
+  namespace: argocd
+spec:
+  project: homelab-database
+  source:
+    repoURL: https://github.com/wlodzimierrr/homelab-workloads.git
+    targetRevision: main
+    path: apps/homelab-database/envs/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homelab-database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
