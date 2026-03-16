@@ -5,6 +5,7 @@ metadata:
   namespace: homelab-database
   labels:
     app.kubernetes.io/name: homelab-database
+    app.kubernetes.io/instance: homelab-database
 spec:
   type: ClusterIP
   selector:

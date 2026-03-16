@@ -5,6 +5,7 @@ metadata:
   namespace: homelab-api
   labels:
     app.kubernetes.io/name: homelab-api
+    app.kubernetes.io/instance: homelab-api
     app.kubernetes.io/component: api
 spec:
   type: ClusterIP

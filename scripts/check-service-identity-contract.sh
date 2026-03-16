@@ -147,17 +147,20 @@ while IFS= read -r app_dir; do
   if [[ "$has_statefulset" -eq 1 ]]; then
     base_workload="${app_dir}/base/statefulset.yaml"
     require_regex "$base_workload" "app.kubernetes.io/name:[[:space:]]*${service_id}$" "workload labels use canonical app label for ${service_id}"
+    require_regex "$base_workload" "app.kubernetes.io/instance:[[:space:]]*${service_id}$" "workload metadata labels have canonical instance label for ${service_id}"
     require_regex "$base_workload" "^  namespace: ${service_id}$" "workload namespace matches ${service_id}"
   else
     base_deployment="${app_dir}/base/deployment.yaml"
     require_file "$base_deployment" "base deployment exists for ${service_id}"
     require_regex "$base_deployment" "app.kubernetes.io/name:[[:space:]]*${service_id}$" "deployment labels use canonical app label for ${service_id}"
+    require_regex "$base_deployment" "app.kubernetes.io/instance:[[:space:]]*${service_id}$" "deployment metadata labels have canonical instance label for ${service_id}"
     require_regex "$base_deployment" "^  namespace: ${service_id}$" "deployment namespace matches ${service_id}"
   fi
 
   base_service="${app_dir}/base/service.yaml"
   if [[ -f "$base_service" ]]; then
     require_regex "$base_service" "app.kubernetes.io/name:[[:space:]]*${service_id}$" "service selector uses canonical app label for ${service_id}"
+    require_regex "$base_service" "app.kubernetes.io/instance:[[:space:]]*${service_id}$" "service metadata labels have canonical instance label for ${service_id}"
     require_regex "$base_service" "^  namespace: ${service_id}$" "service namespace matches ${service_id}"
   fi
 

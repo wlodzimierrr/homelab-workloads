@@ -5,6 +5,7 @@ metadata:
   namespace: homelab-web
   labels:
     app.kubernetes.io/name: homelab-web
+    app.kubernetes.io/instance: homelab-web
 spec:
   replicas: 1
   selector:
