@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scaffold-smoke
+  namespace: scaffold-smoke
+spec:
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: app
+          image: ghcr.io/wlodzimierrr/scaffold-smoke:0.1.0
+          env:
+            - name: APP_ENV
+              value: prod
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

@@ -8,32 +8,32 @@ smoke_home="$tmp_root/home"
 mkdir -p "$smoke_home"
 
 gitops_root="$tmp_root/workloads"
-repo_output_dir="$tmp_root/scaffold-smoke-repo"
+repo_output_dir="$tmp_root/scaffold-gen-test-repo"
 
 cp -R "$repo_root" "$gitops_root"
 rm -rf "$gitops_root/.git"
 
 python3 "$repo_root/scripts/scaffold-service.py" \
-  --name scaffold-smoke \
+  --name scaffold-gen-test \
   --description "Smoke-test scaffolded FastAPI service" \
-  --image-repo ghcr.io/example/scaffold-smoke \
-  --repo-url https://github.com/example/scaffold-smoke \
+  --image-repo ghcr.io/example/scaffold-gen-test \
+  --repo-url https://github.com/example/scaffold-gen-test \
   --owner-email ops@example.com \
   --template python-fastapi \
-  --prod-host scaffold-smoke.example.com \
+  --prod-host scaffold-gen-test.example.com \
   --gitops-root "$gitops_root" \
   --repo-output-dir "$repo_output_dir" \
   --image-pull-secret ""
 
 required_paths=(
-  "$repo_output_dir/.github/workflows/build-scaffold-smoke.yml"
+  "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
   "$repo_output_dir/app/main.py"
-  "$gitops_root/apps/scaffold-smoke/base/kustomization.yaml"
-  "$gitops_root/apps/scaffold-smoke/base/servicemonitor.yaml"
-  "$gitops_root/apps/scaffold-smoke/envs/dev/kustomization.yaml"
-  "$gitops_root/apps/scaffold-smoke/envs/prod/kustomization.yaml"
-  "$gitops_root/environments/dev/workloads/scaffold-smoke-app.yaml"
-  "$gitops_root/environments/prod/workloads/scaffold-smoke-app.yaml"
+  "$gitops_root/apps/scaffold-gen-test/base/kustomization.yaml"
+  "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml"
+  "$gitops_root/apps/scaffold-gen-test/envs/dev/kustomization.yaml"
+  "$gitops_root/apps/scaffold-gen-test/envs/prod/kustomization.yaml"
+  "$gitops_root/environments/dev/workloads/scaffold-gen-test-app.yaml"
+  "$gitops_root/environments/prod/workloads/scaffold-gen-test-app.yaml"
   "$gitops_root/services.yaml"
 )
 
@@ -44,14 +44,14 @@ for path in "${required_paths[@]}"; do
   fi
 done
 
-grep -q "service_id: scaffold-smoke" "$gitops_root/services.yaml"
-grep -q "repo_url: 'https://github.com/example/scaffold-smoke'" "$gitops_root/services.yaml"
+grep -q "service_id: scaffold-gen-test" "$gitops_root/services.yaml"
+grep -q "repo_url: 'https://github.com/example/scaffold-gen-test'" "$gitops_root/services.yaml"
 grep -q "mode: app-native" "$gitops_root/services.yaml"
-grep -q "public_host: 'scaffold-smoke.example.com'" "$gitops_root/services.yaml"
-grep -q "path: /metrics" "$gitops_root/apps/scaffold-smoke/base/servicemonitor.yaml"
+grep -q "public_host: 'scaffold-gen-test.example.com'" "$gitops_root/services.yaml"
+grep -q "path: /metrics" "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml"
 
-CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/dev" >/dev/null
-CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-smoke/envs/prod" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/prod" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/environments/prod" >/dev/null
 

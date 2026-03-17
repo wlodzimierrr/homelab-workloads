@@ -1007,6 +1007,7 @@ def gitops_base_files(
         f"  namespace: {namespace}",
         "  labels:",
         f"    app.kubernetes.io/name: {name}",
+        f"    app.kubernetes.io/instance: {name}",
         "    app.kubernetes.io/component: main-app" if add_app_component_label else None,
         "spec:",
         "  replicas: 1",
@@ -1087,6 +1088,7 @@ def gitops_base_files(
               namespace: {namespace}
               labels:
                 app.kubernetes.io/name: {name}
+                app.kubernetes.io/instance: {name}
             spec:
               type: ClusterIP
               selector:

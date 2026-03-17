@@ -56,3 +56,20 @@ services:
       - name: prod
         namespace: homelab-database
         argo_app: homelab-database-prod
+  - service_id: scaffold-smoke
+    name: 'scaffold-smoke'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
+    runbook_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
+    description: 'Scaffold smoke-test service for validating platform bootstrapping and network reachability'
+    observability:
+      mode: app-native
+    envs:
+      - name: dev
+        namespace: scaffold-smoke
+        argo_app: scaffold-smoke-dev
+      - name: prod
+        namespace: scaffold-smoke
+        argo_app: scaffold-smoke-prod
+        public_host: 'scaffold-smoke.homelab.local'

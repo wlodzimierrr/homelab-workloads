@@ -7,3 +7,4 @@ resources:
   - monitoring-app.yaml
   - monitoring-ingress-app.yaml
   - promtail-app.yaml
+  - scaffold-smoke-app.yaml

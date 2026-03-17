@@ -1,0 +1,22 @@
+# Generated for future prod activation.
+# Keep environments/prod/workloads/kustomization.yaml empty while single-cluster safety mode is active.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: scaffold-smoke-prod
+  namespace: argocd
+spec:
+  project: scaffold-smoke
+  source:
+    repoURL: https://github.com/wlodzimierrr/homelab-workloads.git
+    targetRevision: main
+    path: apps/scaffold-smoke/envs/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: scaffold-smoke
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

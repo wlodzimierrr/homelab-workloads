@@ -99,3 +99,19 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: scaffold-smoke
+  namespace: argocd
+spec:
+  description: Scaffold smoke-test service for validating platform bootstrapping and network reachability resources in scaffold-smoke namespace only
+  sourceRepos:
+    - https://github.com/wlodzimierrr/homelab-workloads.git
+  destinations:
+    - namespace: scaffold-smoke
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
