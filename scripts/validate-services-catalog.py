@@ -158,6 +158,17 @@ def validate_catalog(catalog_path: Path) -> None:
             else:
                 _fail(f"{label} 'owner_email' must be a non-empty string if present")
 
+        # project_id (optional) — must be a valid kebab-case identifier if present
+        project_id = entry.get("project_id")
+        if project_id is not None:
+            if isinstance(project_id, str) and SERVICE_ID_PATTERN.match(project_id):
+                _pass(f"{label} project_id '{project_id}' is valid kebab-case")
+            else:
+                _fail(
+                    f"{label} 'project_id' must match ^[a-z][a-z0-9-]+$ if present, "
+                    f"got {project_id!r}"
+                )
+
         # envs
         envs = entry.get("envs")
         if not isinstance(envs, list) or len(envs) == 0:

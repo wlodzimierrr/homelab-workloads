@@ -30,6 +30,7 @@ services:
         namespace: homelab-web
         argo_app: homelab-web-prod
   - service_id: oauth2-proxy
+    project_id: homelab-web
     name: OAuth2 Proxy
     owner: wlodzimierrr
     repo_url: https://github.com/wlodzimierrr/homelab/tree/main/workloads/apps/homelab-web/envs/dev
