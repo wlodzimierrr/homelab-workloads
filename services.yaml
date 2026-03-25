@@ -51,7 +51,7 @@ services:
     runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads.git'
     description: 'database for homelab'
     observability:
-      mode: ingress-derived
+      mode: no-http
     envs:
       - name: prod
         namespace: homelab-database

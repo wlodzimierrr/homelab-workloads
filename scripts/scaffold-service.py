@@ -176,6 +176,646 @@ def build_python_fastapi_repo_files(name: str, description: str, image_repo: str
     }
 
 
+def build_python_django_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    module_name = name.replace("-", "_")
+    return {
+        ".gitignore": dedent(
+            """
+            __pycache__/
+            *.pyc
+            .pytest_cache/
+            .venv/
+            dist/
+            build/
+            db.sqlite3
+            staticfiles/
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            .git
+            .github
+            .pytest_cache
+            .venv
+            __pycache__
+            tests
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Local Development
+
+            ```bash
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install -e .[dev]
+            python manage.py runserver 0.0.0.0:8000
+            ```
+
+            ## Tests
+
+            ```bash
+            pytest
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "pyproject.toml": render_template(
+            """
+            [build-system]
+            requires = ["setuptools>=68", "wheel"]
+            build-backend = "setuptools.build_meta"
+
+            [project]
+            name = "{name}"
+            version = "0.1.0"
+            description = "{description}"
+            requires-python = ">=3.11"
+            dependencies = [
+              "django>=5.1,<6.0",
+              "gunicorn>=23.0,<24.0",
+            ]
+
+            [project.optional-dependencies]
+            dev = [
+              "pytest>=8.4,<9.0",
+              "pytest-django>=4.9,<5.0",
+            ]
+
+            [tool.setuptools.packages.find]
+            include = ["{module_name}*"]
+
+            [tool.pytest.ini_options]
+            DJANGO_SETTINGS_MODULE = "{module_name}.settings"
+            """,
+            name=name,
+            description=description,
+            module_name=module_name,
+        ),
+        "manage.py": render_template(
+            """
+            #!/usr/bin/env python
+            import os
+            import sys
+
+            def main():
+                os.environ.setdefault("DJANGO_SETTINGS_MODULE", "{module_name}.settings")
+                from django.core.management import execute_from_command_line
+                execute_from_command_line(sys.argv)
+
+            if __name__ == "__main__":
+                main()
+            """,
+            module_name=module_name,
+        ),
+        f"{module_name}/__init__.py": "",
+        f"{module_name}/settings.py": render_template(
+            """
+            import os
+            from pathlib import Path
+
+            BASE_DIR = Path(__file__).resolve().parent.parent
+            SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "change-me-in-production")
+            DEBUG = os.getenv("DJANGO_DEBUG", "false").lower() in ("1", "true")
+            ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",")
+            ROOT_URLCONF = "{module_name}.urls"
+            INSTALLED_APPS = [
+                "django.contrib.contenttypes",
+                "django.contrib.auth",
+            ]
+            MIDDLEWARE = [
+                "django.middleware.security.SecurityMiddleware",
+                "django.middleware.common.CommonMiddleware",
+            ]
+            DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+            """,
+            module_name=module_name,
+        ),
+        f"{module_name}/urls.py": render_template(
+            """
+            from django.urls import path
+            from {module_name} import views
+
+            urlpatterns = [
+                path("health/", views.health),
+                path("", views.root),
+            ]
+            """,
+            module_name=module_name,
+        ),
+        f"{module_name}/views.py": dedent(
+            """
+            from django.http import JsonResponse
+
+
+            def health(request):
+                return JsonResponse({"status": "ok"})
+
+
+            def root(request):
+                return JsonResponse({"service": "ready"})
+            """
+        ),
+        f"{module_name}/wsgi.py": render_template(
+            """
+            import os
+            from django.core.wsgi import get_wsgi_application
+
+            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "{module_name}.settings")
+            application = get_wsgi_application()
+            """,
+            module_name=module_name,
+        ),
+        "tests/test_health.py": render_template(
+            """
+            import pytest
+            from django.test import Client
+
+            @pytest.mark.django_db(transaction=False)
+            def test_health():
+                client = Client()
+                response = client.get("/health/")
+                assert response.status_code == 200
+                assert response.json() == {{"status": "ok"}}
+            """,
+        ),
+        "Dockerfile": render_template(
+            """
+            FROM python:3.11-slim
+
+            WORKDIR /app
+
+            COPY pyproject.toml ./
+            COPY {module_name} ./{module_name}
+            COPY manage.py ./
+
+            RUN pip install --no-cache-dir --upgrade pip \\
+              && pip install --no-cache-dir .
+
+            EXPOSE 8000
+
+            CMD ["gunicorn", "{module_name}.wsgi:application", "--bind", "0.0.0.0:8000"]
+            """,
+            module_name=module_name,
+        ),
+    }
+
+
+def build_python_flask_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            __pycache__/
+            *.pyc
+            .pytest_cache/
+            .venv/
+            dist/
+            build/
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            .git
+            .github
+            .pytest_cache
+            .venv
+            __pycache__
+            tests
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Local Development
+
+            ```bash
+            python3 -m venv .venv
+            . .venv/bin/activate
+            pip install -e .[dev]
+            flask --app app.main run --host 0.0.0.0 --port 5000
+            ```
+
+            ## Tests
+
+            ```bash
+            pytest
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "pyproject.toml": render_template(
+            """
+            [build-system]
+            requires = ["setuptools>=68", "wheel"]
+            build-backend = "setuptools.build_meta"
+
+            [project]
+            name = "{name}"
+            version = "0.1.0"
+            description = "{description}"
+            requires-python = ">=3.11"
+            dependencies = [
+              "flask>=3.1,<4.0",
+              "gunicorn>=23.0,<24.0",
+            ]
+
+            [project.optional-dependencies]
+            dev = [
+              "pytest>=8.4,<9.0",
+            ]
+
+            [tool.setuptools.packages.find]
+            include = ["app*"]
+            """,
+            name=name,
+            description=description,
+        ),
+        "app/__init__.py": "",
+        "app/main.py": dedent(
+            """
+            from flask import Flask, jsonify
+
+
+            def create_app():
+                app = Flask(__name__)
+
+                @app.get("/health")
+                def health():
+                    return jsonify(status="ok")
+
+                @app.get("/")
+                def root():
+                    return jsonify(service="ready")
+
+                return app
+
+
+            app = create_app()
+            """
+        ),
+        "tests/test_health.py": dedent(
+            """
+            from app.main import create_app
+
+
+            def test_health():
+                app = create_app()
+                client = app.test_client()
+                response = client.get("/health")
+                assert response.status_code == 200
+                assert response.get_json() == {"status": "ok"}
+            """
+        ),
+        "Dockerfile": render_template(
+            """
+            FROM python:3.11-slim
+
+            WORKDIR /app
+
+            COPY pyproject.toml ./
+            COPY app ./app
+
+            RUN pip install --no-cache-dir --upgrade pip \\
+              && pip install --no-cache-dir .
+
+            EXPOSE 5000
+
+            CMD ["gunicorn", "app.main:app", "--bind", "0.0.0.0:5000"]
+            """,
+        ),
+    }
+
+
+def build_node_express_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            node_modules/
+            npm-debug.log*
+            .env
+            dist/
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            .git
+            .github
+            node_modules
+            npm-debug.log*
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Local Development
+
+            ```bash
+            npm install
+            node src/index.js
+            ```
+
+            ## Tests
+
+            ```bash
+            npm test
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "package.json": render_template(
+            """
+            {{
+              "name": "{name}",
+              "version": "0.1.0",
+              "description": "{description}",
+              "main": "src/index.js",
+              "scripts": {{
+                "start": "node src/index.js",
+                "test": "node --test"
+              }},
+              "dependencies": {{
+                "express": "^4.21.0",
+                "prom-client": "^15.1.0"
+              }}
+            }}
+            """,
+            name=name,
+            description=description,
+        ),
+        "src/index.js": dedent(
+            """
+            'use strict'
+
+            const express = require('express')
+            const { register, collectDefaultMetrics } = require('prom-client')
+
+            collectDefaultMetrics()
+
+            const app = express()
+            const PORT = process.env.PORT || 3000
+
+            app.get('/health', (_req, res) => {
+              res.json({ status: 'ok' })
+            })
+
+            app.get('/metrics', async (_req, res) => {
+              res.set('Content-Type', register.contentType)
+              res.end(await register.metrics())
+            })
+
+            app.get('/', (_req, res) => {
+              res.json({ service: 'ready' })
+            })
+
+            app.listen(PORT, '0.0.0.0', () => {
+              console.log(`Server listening on port ${PORT}`)
+            })
+            """
+        ),
+        "src/index.test.js": dedent(
+            """
+            'use strict'
+
+            const { describe, it, before, after } = require('node:test')
+            const assert = require('node:assert/strict')
+            const http = require('node:http')
+
+            let server
+
+            before(async () => {
+              process.env.PORT = '0'
+              const mod = require('./index')
+              server = mod
+            })
+
+            after(() => {
+              if (server && typeof server.close === 'function') server.close()
+            })
+
+            async function get(path) {
+              return new Promise((resolve, reject) => {
+                const port = server?.address?.()?.port || 3000
+                http.get(`http://127.0.0.1:${port}${path}`, (res) => {
+                  let body = ''
+                  res.on('data', (chunk) => { body += chunk })
+                  res.on('end', () => resolve({ status: res.statusCode, body }))
+                }).on('error', reject)
+              })
+            }
+
+            describe('health endpoint', () => {
+              it('returns 200 ok', async () => {
+                const { status, body } = await get('/health')
+                assert.equal(status, 200)
+                assert.deepEqual(JSON.parse(body), { status: 'ok' })
+              })
+            })
+            """
+        ),
+        "Dockerfile": dedent(
+            """
+            FROM node:20-alpine AS deps
+            WORKDIR /app
+            COPY package*.json ./
+            RUN npm ci --omit=dev
+
+            FROM node:20-alpine
+            WORKDIR /app
+            COPY --from=deps /app/node_modules ./node_modules
+            COPY src ./src
+            COPY package.json ./
+            EXPOSE 3000
+            CMD ["node", "src/index.js"]
+            """
+        ),
+    }
+
+
+def build_node_nestjs_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            node_modules/
+            npm-debug.log*
+            .env
+            dist/
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            .git
+            .github
+            node_modules
+            npm-debug.log*
+            dist
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Local Development
+
+            ```bash
+            npm install
+            npm run start:dev
+            ```
+
+            ## Tests
+
+            ```bash
+            npm test
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "package.json": render_template(
+            """
+            {{
+              "name": "{name}",
+              "version": "0.1.0",
+              "description": "{description}",
+              "scripts": {{
+                "build": "tsc",
+                "start": "node dist/main.js",
+                "start:dev": "ts-node src/main.ts",
+                "test": "node --test dist/**/*.test.js"
+              }},
+              "dependencies": {{
+                "@nestjs/common": "^10.4.0",
+                "@nestjs/core": "^10.4.0",
+                "@nestjs/platform-express": "^10.4.0",
+                "reflect-metadata": "^0.2.2",
+                "rxjs": "^7.8.1"
+              }},
+              "devDependencies": {{
+                "typescript": "^5.5.0",
+                "ts-node": "^10.9.0",
+                "@types/node": "^20.14.0",
+                "@types/express": "^4.17.0"
+              }}
+            }}
+            """,
+            name=name,
+            description=description,
+        ),
+        "tsconfig.json": dedent(
+            """
+            {
+              "compilerOptions": {
+                "module": "commonjs",
+                "target": "ES2021",
+                "outDir": "./dist",
+                "rootDir": "./src",
+                "strict": true,
+                "esModuleInterop": true,
+                "emitDecoratorMetadata": true,
+                "experimentalDecorators": true,
+                "skipLibCheck": true,
+                "declaration": true
+              },
+              "include": ["src/**/*"]
+            }
+            """
+        ),
+        "src/main.ts": dedent(
+            """
+            import { NestFactory } from '@nestjs/core'
+            import { AppModule } from './app.module'
+
+            async function bootstrap() {
+              const app = await NestFactory.create(AppModule)
+              await app.listen(process.env.PORT || 3000, '0.0.0.0')
+            }
+            bootstrap()
+            """
+        ),
+        "src/app.module.ts": dedent(
+            """
+            import { Module } from '@nestjs/common'
+            import { HealthController } from './health.controller'
+
+            @Module({
+              controllers: [HealthController],
+            })
+            export class AppModule {}
+            """
+        ),
+        "src/health.controller.ts": dedent(
+            """
+            import { Controller, Get } from '@nestjs/common'
+
+            @Controller()
+            export class HealthController {
+              @Get('health')
+              health() {
+                return { status: 'ok' }
+              }
+
+              @Get()
+              root() {
+                return { service: 'ready' }
+              }
+            }
+            """
+        ),
+        "Dockerfile": dedent(
+            """
+            FROM node:20-alpine AS build
+            WORKDIR /app
+            COPY package*.json tsconfig.json ./
+            RUN npm ci
+            COPY src ./src
+            RUN npm run build
+
+            FROM node:20-alpine
+            WORKDIR /app
+            COPY --from=build /app/dist ./dist
+            COPY --from=build /app/node_modules ./node_modules
+            COPY package.json ./
+            EXPOSE 3000
+            CMD ["node", "dist/main.js"]
+            """
+        ),
+    }
+
+
 def build_static_nginx_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
     return {
         ".gitignore": dedent(
@@ -284,11 +924,532 @@ def build_static_nginx_repo_files(name: str, description: str, image_repo: str) 
     }
 
 
+def build_react_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            node_modules/
+            dist/
+            .DS_Store
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            node_modules
+            dist
+            .git
+            .github
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Development
+
+            ```bash
+            npm install
+            npm run dev
+            ```
+
+            ## Production build
+
+            ```bash
+            docker build -t {name}:local .
+            docker run --rm -p 8080:80 {name}:local
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "package.json": render_template(
+            """
+            {{
+              "name": "{name}",
+              "private": true,
+              "version": "0.1.0",
+              "type": "module",
+              "scripts": {{
+                "dev": "vite",
+                "build": "vite build",
+                "preview": "vite preview",
+                "test": "echo \\"no tests yet\\" && exit 0"
+              }},
+              "dependencies": {{
+                "react": "^18.3.1",
+                "react-dom": "^18.3.1"
+              }},
+              "devDependencies": {{
+                "@types/react": "^18.3.3",
+                "@types/react-dom": "^18.3.0",
+                "@vitejs/plugin-react": "^4.3.1",
+                "vite": "^5.4.2"
+              }}
+            }}
+            """,
+            name=name,
+        ),
+        "vite.config.ts": dedent(
+            """
+            import { defineConfig } from 'vite'
+            import react from '@vitejs/plugin-react'
+
+            export default defineConfig({
+              plugins: [react()],
+            })
+            """
+        ),
+        "index.html": render_template(
+            """
+            <!doctype html>
+            <html lang="en">
+              <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>{name}</title>
+              </head>
+              <body>
+                <div id="root"></div>
+                <script type="module" src="/src/main.tsx"></script>
+              </body>
+            </html>
+            """,
+            name=name,
+        ),
+        "src/main.tsx": dedent(
+            """
+            import React from 'react'
+            import ReactDOM from 'react-dom/client'
+            import App from './App'
+
+            ReactDOM.createRoot(document.getElementById('root')!).render(
+              <React.StrictMode>
+                <App />
+              </React.StrictMode>,
+            )
+            """
+        ),
+        "src/App.tsx": render_template(
+            """
+            function App() {{
+              return (
+                <main style={{{{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}}}>
+                  <h1>{name}</h1>
+                  <p>{description}</p>
+                </main>
+              )
+            }}
+
+            export default App
+            """,
+            name=name,
+            description=description,
+        ),
+        "nginx.conf": dedent(
+            """
+            server {
+              listen 80;
+              server_name _;
+              root /usr/share/nginx/html;
+              index index.html;
+
+              location /health {
+                add_header Content-Type text/plain;
+                return 200 "ok";
+              }
+
+              location / {
+                try_files $uri $uri/ /index.html;
+              }
+            }
+            """
+        ),
+        "Dockerfile": dedent(
+            """
+            FROM node:20-alpine AS build
+            WORKDIR /app
+            COPY package.json package-lock.json* ./
+            RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            COPY . .
+            RUN npm run build
+
+            FROM nginx:1.27-alpine
+            COPY nginx.conf /etc/nginx/conf.d/default.conf
+            COPY --from=build /app/dist /usr/share/nginx/html
+            """
+        ),
+    }
+
+
+def build_nextjs_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            node_modules/
+            .next/
+            out/
+            .DS_Store
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            node_modules
+            .next
+            out
+            .git
+            .github
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Development
+
+            ```bash
+            npm install
+            npm run dev
+            ```
+
+            ## Production build
+
+            ```bash
+            docker build -t {name}:local .
+            docker run --rm -p 3000:3000 {name}:local
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "package.json": render_template(
+            """
+            {{
+              "name": "{name}",
+              "private": true,
+              "version": "0.1.0",
+              "scripts": {{
+                "dev": "next dev",
+                "build": "next build",
+                "start": "next start",
+                "test": "echo \\"no tests yet\\" && exit 0"
+              }},
+              "dependencies": {{
+                "next": "^14.2.5",
+                "react": "^18.3.1",
+                "react-dom": "^18.3.1"
+              }},
+              "devDependencies": {{
+                "@types/node": "^20.14.10",
+                "@types/react": "^18.3.3",
+                "@types/react-dom": "^18.3.0",
+                "typescript": "^5.5.3"
+              }}
+            }}
+            """,
+            name=name,
+        ),
+        "tsconfig.json": dedent(
+            """
+            {
+              "compilerOptions": {
+                "target": "es5",
+                "lib": ["dom", "dom.iterable", "esnext"],
+                "allowJs": true,
+                "skipLibCheck": true,
+                "strict": true,
+                "noEmit": true,
+                "esModuleInterop": true,
+                "module": "esnext",
+                "moduleResolution": "bundler",
+                "resolveJsonModule": true,
+                "isolatedModules": true,
+                "jsx": "preserve",
+                "incremental": true,
+                "plugins": [{ "name": "next" }],
+                "paths": { "@/*": ["./src/*"] }
+              },
+              "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+              "exclude": ["node_modules"]
+            }
+            """
+        ),
+        "next.config.js": dedent(
+            """
+            /** @type {import('next').NextConfig} */
+            const nextConfig = {
+              output: 'standalone',
+            }
+
+            module.exports = nextConfig
+            """
+        ),
+        "src/app/layout.tsx": render_template(
+            """
+            export const metadata = {{
+              title: '{name}',
+              description: '{description}',
+            }}
+
+            export default function RootLayout({{ children }}: {{ children: React.ReactNode }}) {{
+              return (
+                <html lang="en">
+                  <body>{{children}}</body>
+                </html>
+              )
+            }}
+            """,
+            name=name,
+            description=description,
+        ),
+        "src/app/page.tsx": render_template(
+            """
+            export default function Home() {{
+              return (
+                <main style={{{{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}}}>
+                  <h1>{name}</h1>
+                  <p>{description}</p>
+                </main>
+              )
+            }}
+            """,
+            name=name,
+            description=description,
+        ),
+        "src/app/api/health/route.ts": dedent(
+            """
+            import { NextResponse } from 'next/server'
+
+            export function GET() {
+              return NextResponse.json({ status: 'ok' })
+            }
+            """
+        ),
+        "Dockerfile": dedent(
+            """
+            FROM node:20-alpine AS deps
+            WORKDIR /app
+            COPY package.json package-lock.json* ./
+            RUN npm ci
+
+            FROM node:20-alpine AS build
+            WORKDIR /app
+            COPY --from=deps /app/node_modules ./node_modules
+            COPY . .
+            RUN npm run build
+
+            FROM node:20-alpine AS runner
+            WORKDIR /app
+            ENV NODE_ENV=production
+            COPY --from=build /app/public ./public
+            COPY --from=build /app/.next/standalone ./
+            COPY --from=build /app/.next/static ./.next/static
+            EXPOSE 3000
+            CMD ["node", "server.js"]
+            """
+        ),
+    }
+
+
+def build_vue_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
+    return {
+        ".gitignore": dedent(
+            """
+            node_modules/
+            dist/
+            .DS_Store
+            """
+        ),
+        ".dockerignore": dedent(
+            """
+            node_modules
+            dist
+            .git
+            .github
+            """
+        ),
+        "README.md": render_template(
+            """
+            # {name}
+
+            {description}
+
+            ## Development
+
+            ```bash
+            npm install
+            npm run dev
+            ```
+
+            ## Production build
+
+            ```bash
+            docker build -t {name}:local .
+            docker run --rm -p 8080:80 {name}:local
+            ```
+
+            ## Image
+
+            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            """,
+            name=name,
+            description=description,
+            image_repo=image_repo,
+        ),
+        "package.json": render_template(
+            """
+            {{
+              "name": "{name}",
+              "private": true,
+              "version": "0.1.0",
+              "type": "module",
+              "scripts": {{
+                "dev": "vite",
+                "build": "vite build",
+                "preview": "vite preview",
+                "test": "echo \"no tests yet\" && exit 0"
+              }},
+              "dependencies": {{
+                "vue": "^3.5.13"
+              }},
+              "devDependencies": {{
+                "@vitejs/plugin-vue": "^5.1.4",
+                "vite": "^5.4.2"
+              }}
+            }}
+            """,
+            name=name,
+        ),
+        "vite.config.ts": dedent(
+            """
+            import { defineConfig } from 'vite'
+            import vue from '@vitejs/plugin-vue'
+
+            export default defineConfig({
+              plugins: [vue()],
+            })
+            """
+        ),
+        "index.html": render_template(
+            """
+            <!doctype html>
+            <html lang="en">
+              <head>
+                <meta charset="utf-8" />
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+                <title>{name}</title>
+              </head>
+              <body>
+                <div id="app"></div>
+                <script type="module" src="/src/main.js"></script>
+              </body>
+            </html>
+            """,
+            name=name,
+        ),
+        "src/main.js": dedent(
+            """
+            import { createApp } from 'vue'
+            import App from './App.vue'
+
+            createApp(App).mount('#app')
+            """
+        ),
+        "src/App.vue": render_template(
+            """
+            <template>
+              <main class="app-shell">
+                <h1>{name}</h1>
+                <p>{description}</p>
+              </main>
+            </template>
+
+            <style scoped>
+            .app-shell {{
+              font-family: system-ui, sans-serif;
+              padding: 2rem;
+            }}
+            </style>
+            """,
+            name=name,
+            description=description,
+        ),
+        "nginx.conf": dedent(
+            """
+            server {
+              listen 80;
+              server_name _;
+              root /usr/share/nginx/html;
+              index index.html;
+
+              location /health {
+                add_header Content-Type text/plain;
+                return 200 "ok";
+              }
+
+              location / {
+                try_files $uri $uri/ /index.html;
+              }
+            }
+            """
+        ),
+        "Dockerfile": dedent(
+            """
+            FROM node:20-alpine AS build
+            WORKDIR /app
+            COPY package.json package-lock.json* ./
+            RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            COPY . .
+            RUN npm run build
+
+            FROM nginx:1.27-alpine
+            COPY nginx.conf /etc/nginx/conf.d/default.conf
+            COPY --from=build /app/dist /usr/share/nginx/html
+            """
+        ),
+    }
+
+
 TEMPLATES: dict[str, TemplateSpec] = {
     "python-fastapi": TemplateSpec(
         key="python-fastapi",
         display_name="Python + FastAPI",
         container_port=8000,
+        service_port=80,
+        health_path="/health",
+        readiness_path="/health",
+        container_name="app",
+        default_observability_mode="app-native",
+        repo_files={},
+    ),
+    "python-django": TemplateSpec(
+        key="python-django",
+        display_name="Python + Django",
+        container_port=8000,
+        service_port=80,
+        health_path="/health/",
+        readiness_path="/health/",
+        container_name="app",
+        default_observability_mode="app-native",
+        repo_files={},
+    ),
+    "python-flask": TemplateSpec(
+        key="python-flask",
+        display_name="Python + Flask",
+        container_port=5000,
         service_port=80,
         health_path="/health",
         readiness_path="/health",
@@ -305,6 +1466,72 @@ TEMPLATES: dict[str, TemplateSpec] = {
         readiness_path="/health",
         container_name="web",
         default_observability_mode="ingress-derived",
+        repo_files={},
+    ),
+    "react": TemplateSpec(
+        key="react",
+        display_name="React (Vite)",
+        container_port=80,
+        service_port=80,
+        health_path="/health",
+        readiness_path="/health",
+        container_name="web",
+        default_observability_mode="ingress-derived",
+        repo_files={},
+    ),
+    "nextjs": TemplateSpec(
+        key="nextjs",
+        display_name="Next.js",
+        container_port=3000,
+        service_port=80,
+        health_path="/api/health",
+        readiness_path="/api/health",
+        container_name="web",
+        default_observability_mode="app-native",
+        repo_files={},
+    ),
+    "vue": TemplateSpec(
+        key="vue",
+        display_name="Vue",
+        container_port=80,
+        service_port=80,
+        health_path="/",
+        readiness_path="/",
+        container_name="web",
+        default_observability_mode="ingress-derived",
+        repo_files={},
+    ),
+    "wordpress": TemplateSpec(
+        key="wordpress",
+        display_name="WordPress",
+        container_port=80,
+        service_port=80,
+        health_path="/wp-login.php",
+        readiness_path="/wp-login.php",
+        container_name="web",
+        default_observability_mode="ingress-derived",
+        repo_files={},
+    ),
+    "node-express": TemplateSpec(
+        key="node-express",
+        display_name="Express.js",
+        container_port=3000,
+        service_port=80,
+        health_path="/health",
+        readiness_path="/health",
+        container_name="app",
+        default_observability_mode="app-native",
+        repo_files={},
+    ),
+    "node-nestjs": TemplateSpec(
+        key="node-nestjs",
+        display_name="NestJS",
+        container_port=3000,
+        service_port=80,
+        health_path="/health",
+        readiness_path="/health",
+        container_name="app",
+        default_observability_mode="app-native",
         repo_files={},
     ),
 }
@@ -1228,6 +2455,600 @@ def gitops_base_files(
     return files
 
 
+def wordpress_base_files(
+    *,
+    name: str,
+    namespace: str,
+    image_repo: str,
+    image_pull_secret: str,
+    dev_host: str,
+) -> dict[str, str]:
+    db_secret_name = f"{name}-wordpress-db"
+    db_service_name = f"{name}-mysql"
+
+    serviceaccount = render_template(
+        """
+        apiVersion: v1
+        kind: ServiceAccount
+        metadata:
+          name: {name}
+          namespace: {namespace}
+          labels:
+            app.kubernetes.io/name: {name}
+            app.kubernetes.io/component: web
+        """,
+        name=name,
+        namespace=namespace,
+    )
+    if image_pull_secret:
+        serviceaccount += render_template(
+            """
+            imagePullSecrets:
+              - name: {image_pull_secret}
+            """,
+            image_pull_secret=image_pull_secret,
+        )
+
+    resources = [
+        "namespace.yaml",
+        "serviceaccount.yaml",
+        "wordpress-db-secret.enc.yaml",
+        "persistentvolumeclaim.yaml",
+        "deployment.yaml",
+        "service.yaml",
+        "ingress.yaml",
+        "mysql-service.yaml",
+        "mysql-statefulset.yaml",
+        "networkpolicy-default-deny.yaml",
+        "networkpolicy-allow-dns-egress.yaml",
+        "networkpolicy-allow-ingress.yaml",
+        "networkpolicy-allow-mysql-egress.yaml",
+        "networkpolicy-allow-mysql-ingress.yaml",
+    ]
+
+    return {
+        "kustomization.yaml": (
+            "apiVersion: kustomize.config.k8s.io/v1beta1\n"
+            "kind: Kustomization\n"
+            "resources:\n"
+            + "".join(f"  - {resource}\n" for resource in resources)
+        ),
+        "namespace.yaml": render_template(
+            """
+            apiVersion: v1
+            kind: Namespace
+            metadata:
+              name: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+            """,
+            namespace=namespace,
+            name=name,
+        ),
+        "serviceaccount.yaml": serviceaccount,
+        "wordpress-db-secret.enc.yaml": render_template(
+            """
+            # SOPS-encrypted Secret stub for WordPress + MySQL credentials.
+            # Rotate by editing the placeholder values and re-encrypting with SOPS.
+            # See docs/runbooks/sops-secrets.md for the full workflow.
+            apiVersion: v1
+            kind: Secret
+            metadata:
+              name: {db_secret_name}
+              namespace: {namespace}
+            type: Opaque
+            stringData:
+              WORDPRESS_DB_USER: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              WORDPRESS_DB_PASSWORD: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              WORDPRESS_DB_NAME: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              MYSQL_ROOT_PASSWORD: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+            sops:
+              kms: []
+              gcp_kms: []
+              azure_kv: []
+              hc_vault: []
+              age:
+                - recipient: age1xxx
+                  enc: |
+                    -----BEGIN AGE ENCRYPTED FILE-----
+                    ...
+                    -----END AGE ENCRYPTED FILE-----
+              lastmodified: "2026-03-25T00:00:00Z"
+              mac: ENC[AES256_GCM,data:xxx,iv:xxx,tag:xxx,type:str]
+              pgp: []
+              encrypted_regex: ^(stringData|data)$
+              version: 3.8.1
+            """,
+            db_secret_name=db_secret_name,
+            namespace=namespace,
+        ),
+        "persistentvolumeclaim.yaml": render_template(
+            """
+            apiVersion: v1
+            kind: PersistentVolumeClaim
+            metadata:
+              name: {name}-wp-content
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/component: web
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 10Gi
+            """,
+            name=name,
+            namespace=namespace,
+        ),
+        "deployment.yaml": render_template(
+            """
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: {name}
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/instance: {name}
+                app.kubernetes.io/component: web
+            spec:
+              replicas: 1
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: {name}
+                  app.kubernetes.io/component: web
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: {name}
+                    app.kubernetes.io/component: web
+                spec:
+                  serviceAccountName: {name}
+                  containers:
+                    - name: web
+                      image: {image_repo}
+                      imagePullPolicy: IfNotPresent
+                      ports:
+                        - name: http
+                          containerPort: 80
+                      env:
+                        - name: WORDPRESS_DB_HOST
+                          value: {db_service_name}:3306
+                        - name: WORDPRESS_DB_USER
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_USER
+                        - name: WORDPRESS_DB_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_PASSWORD
+                        - name: WORDPRESS_DB_NAME
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_NAME
+                      readinessProbe:
+                        httpGet:
+                          path: /wp-login.php
+                          port: http
+                        initialDelaySeconds: 10
+                        periodSeconds: 10
+                      livenessProbe:
+                        httpGet:
+                          path: /wp-login.php
+                          port: http
+                        initialDelaySeconds: 20
+                        periodSeconds: 20
+                      volumeMounts:
+                        - name: wp-content
+                          mountPath: /var/www/html/wp-content
+                      resources:
+                        requests:
+                          cpu: 100m
+                          memory: 256Mi
+                        limits:
+                          cpu: 500m
+                          memory: 512Mi
+                  volumes:
+                    - name: wp-content
+                      persistentVolumeClaim:
+                        claimName: {name}-wp-content
+            """,
+            name=name,
+            namespace=namespace,
+            image_repo=image_repo,
+            db_service_name=db_service_name,
+            db_secret_name=db_secret_name,
+        ),
+        "service.yaml": render_template(
+            """
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {name}
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/instance: {name}
+                app.kubernetes.io/component: web
+            spec:
+              type: ClusterIP
+              selector:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/component: web
+              ports:
+                - name: http
+                  port: 80
+                  targetPort: http
+            """,
+            name=name,
+            namespace=namespace,
+        ),
+        "ingress.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: {name}
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+              annotations:
+                traefik.ingress.kubernetes.io/router.entrypoints: web
+            spec:
+              ingressClassName: traefik
+              rules:
+                - host: {dev_host}
+                  http:
+                    paths:
+                      - path: /
+                        pathType: Prefix
+                        backend:
+                          service:
+                            name: {name}
+                            port:
+                              number: 80
+            """,
+            name=name,
+            namespace=namespace,
+            dev_host=dev_host,
+        ),
+        "mysql-service.yaml": render_template(
+            """
+            apiVersion: v1
+            kind: Service
+            metadata:
+              name: {db_service_name}
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/component: mysql
+            spec:
+              clusterIP: None
+              selector:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/component: mysql
+              ports:
+                - name: mysql
+                  port: 3306
+                  targetPort: mysql
+            """,
+            db_service_name=db_service_name,
+            namespace=namespace,
+            name=name,
+        ),
+        "mysql-statefulset.yaml": render_template(
+            """
+            apiVersion: apps/v1
+            kind: StatefulSet
+            metadata:
+              name: {db_service_name}
+              namespace: {namespace}
+              labels:
+                app.kubernetes.io/name: {name}
+                app.kubernetes.io/component: mysql
+            spec:
+              serviceName: {db_service_name}
+              replicas: 1
+              selector:
+                matchLabels:
+                  app.kubernetes.io/name: {name}
+                  app.kubernetes.io/component: mysql
+              template:
+                metadata:
+                  labels:
+                    app.kubernetes.io/name: {name}
+                    app.kubernetes.io/component: mysql
+                spec:
+                  containers:
+                    - name: mysql
+                      image: mysql:8.0
+                      imagePullPolicy: IfNotPresent
+                      ports:
+                        - name: mysql
+                          containerPort: 3306
+                      env:
+                        - name: MYSQL_ROOT_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: MYSQL_ROOT_PASSWORD
+                        - name: MYSQL_USER
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_USER
+                        - name: MYSQL_PASSWORD
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_PASSWORD
+                        - name: MYSQL_DATABASE
+                          valueFrom:
+                            secretKeyRef:
+                              name: {db_secret_name}
+                              key: WORDPRESS_DB_NAME
+                      startupProbe:
+                        exec:
+                          command:
+                            - mysqladmin
+                            - ping
+                            - -h
+                            - 127.0.0.1
+                        periodSeconds: 2
+                        timeoutSeconds: 2
+                        failureThreshold: 30
+                      readinessProbe:
+                        exec:
+                          command:
+                            - mysqladmin
+                            - ping
+                            - -h
+                            - 127.0.0.1
+                        periodSeconds: 5
+                        timeoutSeconds: 3
+                        failureThreshold: 6
+                      volumeMounts:
+                        - name: mysql-data
+                          mountPath: /var/lib/mysql
+                      resources:
+                        requests:
+                          cpu: 100m
+                          memory: 256Mi
+                        limits:
+                          cpu: 500m
+                          memory: 512Mi
+              volumeClaimTemplates:
+                - metadata:
+                    name: mysql-data
+                  spec:
+                    accessModes:
+                      - ReadWriteOnce
+                    resources:
+                      requests:
+                        storage: 10Gi
+            """,
+            db_service_name=db_service_name,
+            namespace=namespace,
+            name=name,
+            db_secret_name=db_secret_name,
+        ),
+        "networkpolicy-default-deny.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: default-deny
+              namespace: {namespace}
+            spec:
+              podSelector: {{}}
+              policyTypes:
+                - Ingress
+                - Egress
+            """,
+            namespace=namespace,
+        ),
+        "networkpolicy-allow-dns-egress.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-dns-egress
+              namespace: {namespace}
+            spec:
+              podSelector: {{}}
+              policyTypes:
+                - Egress
+              egress:
+                - to:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: kube-system
+                  ports:
+                    - protocol: UDP
+                      port: 53
+                    - protocol: TCP
+                      port: 53
+            """,
+            namespace=namespace,
+        ),
+        "networkpolicy-allow-ingress.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-ingress-from-traefik
+              namespace: {namespace}
+            spec:
+              podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {name}
+                  app.kubernetes.io/component: web
+              policyTypes:
+                - Ingress
+              ingress:
+                - from:
+                    - namespaceSelector:
+                        matchLabels:
+                          kubernetes.io/metadata.name: kube-system
+                  ports:
+                    - protocol: TCP
+                      port: 80
+            """,
+            namespace=namespace,
+            name=name,
+        ),
+        "networkpolicy-allow-mysql-egress.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-mysql-egress
+              namespace: {namespace}
+            spec:
+              podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {name}
+                  app.kubernetes.io/component: web
+              policyTypes:
+                - Egress
+              egress:
+                - to:
+                    - podSelector:
+                        matchLabels:
+                          app.kubernetes.io/name: {name}
+                          app.kubernetes.io/component: mysql
+                  ports:
+                    - protocol: TCP
+                      port: 3306
+            """,
+            namespace=namespace,
+            name=name,
+        ),
+        "networkpolicy-allow-mysql-ingress.yaml": render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: NetworkPolicy
+            metadata:
+              name: allow-mysql-ingress
+              namespace: {namespace}
+            spec:
+              podSelector:
+                matchLabels:
+                  app.kubernetes.io/name: {name}
+                  app.kubernetes.io/component: mysql
+              policyTypes:
+                - Ingress
+              ingress:
+                - from:
+                    - podSelector:
+                        matchLabels:
+                          app.kubernetes.io/name: {name}
+                          app.kubernetes.io/component: web
+                  ports:
+                    - protocol: TCP
+                      port: 3306
+            """,
+            namespace=namespace,
+            name=name,
+        ),
+    }
+
+
+def wordpress_overlay_files(
+    *,
+    name: str,
+    namespace: str,
+    env_name: str,
+    replicas: int,
+    cpu_request: str,
+    memory_request: str,
+    cpu_limit: str,
+    memory_limit: str,
+    prod_host: str,
+) -> dict[str, str]:
+    files = {
+        "kustomization.yaml": render_template(
+            """
+            apiVersion: kustomize.config.k8s.io/v1beta1
+            kind: Kustomization
+            resources:
+              - ../../base
+            commonLabels:
+              homelab.env: {env_name}
+            patches:
+              - path: patch-deployment.yaml
+            """,
+            env_name=env_name,
+        ),
+        "patch-deployment.yaml": render_template(
+            """
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: {name}
+              namespace: {namespace}
+            spec:
+              replicas: {replicas}
+              template:
+                spec:
+                  containers:
+                    - name: web
+                      resources:
+                        requests:
+                          cpu: {cpu_request}
+                          memory: {memory_request}
+                        limits:
+                          cpu: {cpu_limit}
+                          memory: {memory_limit}
+            """,
+            name=name,
+            namespace=namespace,
+            replicas=str(replicas),
+            cpu_request=cpu_request,
+            memory_request=memory_request,
+            cpu_limit=cpu_limit,
+            memory_limit=memory_limit,
+        ),
+    }
+
+    if env_name == "prod":
+        files["kustomization.yaml"] = render_template(
+            """
+            apiVersion: kustomize.config.k8s.io/v1beta1
+            kind: Kustomization
+            resources:
+              - ../../base
+            commonLabels:
+              homelab.env: prod
+            patches:
+              - path: patch-deployment.yaml
+              - path: patch-ingress.yaml
+            """
+        )
+        files["patch-ingress.yaml"] = render_template(
+            """
+            apiVersion: networking.k8s.io/v1
+            kind: Ingress
+            metadata:
+              name: {name}
+              namespace: {namespace}
+            spec:
+              rules:
+                - host: {prod_host}
+            """,
+            name=name,
+            namespace=namespace,
+            prod_host=prod_host,
+        )
+
+    return files
+
+
 def gitops_overlay_files(
     *,
     name: str,
@@ -1399,6 +3220,225 @@ def gitops_appproject_manifest(name: str, namespace: str, description: str, repo
 
 
 def repo_workflow(name: str, image_repo: str, template: str) -> str:
+    if template in ("nextjs", "react", "vue"):
+        return render_template(
+            """
+            name: Build and Publish {name}
+
+            on:
+              pull_request:
+              push:
+                branches:
+                  - main
+
+            permissions:
+              contents: read
+
+            jobs:
+              test:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Setup Node.js
+                    uses: actions/setup-node@v4
+                    with:
+                      node-version: "20"
+                      cache: npm
+
+                  - name: Install dependencies
+                    run: npm install
+
+                  - name: Build
+                    run: npm run build
+
+              build:
+                runs-on: ubuntu-latest
+                needs: test
+                permissions:
+                  contents: read
+                  packages: write
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Set up Docker Buildx
+                    uses: docker/setup-buildx-action@v3
+
+                  - name: Build image
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: false
+                      tags: local/{name}:ci-${{{{ github.sha }}}}
+
+                  - name: Login to GHCR
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/login-action@v3
+                    with:
+                      registry: ghcr.io
+                      username: ${{{{ github.actor }}}}
+                      password: ${{{{ secrets.GITHUB_TOKEN }}}}
+
+                  - name: Publish image
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: true
+                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+            """,
+            name=name,
+            image_repo=image_repo,
+        )
+    if template == "node-nestjs":
+        return render_template(
+            """
+            name: Build and Publish {name}
+
+            on:
+              pull_request:
+              push:
+                branches:
+                  - main
+
+            permissions:
+              contents: read
+
+            jobs:
+              test:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Setup Node.js
+                    uses: actions/setup-node@v4
+                    with:
+                      node-version: "20"
+                      cache: npm
+
+                  - name: Install dependencies
+                    run: npm ci
+
+                  - name: Build
+                    run: npm run build
+
+                  - name: Run tests
+                    run: npm test
+
+              build:
+                runs-on: ubuntu-latest
+                needs: test
+                permissions:
+                  contents: read
+                  packages: write
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Set up Docker Buildx
+                    uses: docker/setup-buildx-action@v3
+
+                  - name: Build image
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: false
+                      tags: local/{name}:ci-${{{{ github.sha }}}}
+
+                  - name: Login to GHCR
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/login-action@v3
+                    with:
+                      registry: ghcr.io
+                      username: ${{{{ github.actor }}}}
+                      password: ${{{{ secrets.GITHUB_TOKEN }}}}
+
+                  - name: Publish image
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: true
+                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+            """,
+            name=name,
+            image_repo=image_repo,
+        )
+    if template == "node-express":
+        return render_template(
+            """
+            name: Build and Publish {name}
+
+            on:
+              pull_request:
+              push:
+                branches:
+                  - main
+
+            permissions:
+              contents: read
+
+            jobs:
+              test:
+                runs-on: ubuntu-latest
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Setup Node.js
+                    uses: actions/setup-node@v4
+                    with:
+                      node-version: "20"
+                      cache: npm
+
+                  - name: Install dependencies
+                    run: npm ci
+
+                  - name: Run tests
+                    run: npm test
+
+              build:
+                runs-on: ubuntu-latest
+                needs: test
+                permissions:
+                  contents: read
+                  packages: write
+                steps:
+                  - name: Checkout
+                    uses: actions/checkout@v4
+
+                  - name: Set up Docker Buildx
+                    uses: docker/setup-buildx-action@v3
+
+                  - name: Build image
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: false
+                      tags: local/{name}:ci-${{{{ github.sha }}}}
+
+                  - name: Login to GHCR
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/login-action@v3
+                    with:
+                      registry: ghcr.io
+                      username: ${{{{ github.actor }}}}
+                      password: ${{{{ secrets.GITHUB_TOKEN }}}}
+
+                  - name: Publish image
+                    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+                    uses: docker/build-push-action@v6
+                    with:
+                      context: .
+                      push: true
+                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+            """,
+            name=name,
+            image_repo=image_repo,
+        )
     if template == "python-fastapi":
         return render_template(
             """
@@ -1540,9 +3580,26 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
 
 
 def scaffold_repo(args: argparse.Namespace, template: TemplateSpec, repo_output_dir: Path) -> None:
-    files = build_python_fastapi_repo_files(args.name, args.description, args.image_repo)
-    if template.key == "static-nginx":
+    if template.key == "wordpress":
+        return
+    if template.key == "python-django":
+        files = build_python_django_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "python-flask":
+        files = build_python_flask_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "static-nginx":
         files = build_static_nginx_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "react":
+        files = build_react_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "nextjs":
+        files = build_nextjs_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "vue":
+        files = build_vue_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "node-express":
+        files = build_node_express_repo_files(args.name, args.description, args.image_repo)
+    elif template.key == "node-nestjs":
+        files = build_node_nestjs_repo_files(args.name, args.description, args.image_repo)
+    else:
+        files = build_python_fastapi_repo_files(args.name, args.description, args.image_repo)
 
     files[f".github/workflows/build-{args.name}.yml"] = repo_workflow(args.name, args.image_repo, template.key)
 
@@ -1554,86 +3611,114 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
     app_root = gitops_root / "apps" / args.name
     ensure_absent(app_root, "service manifest directory")
 
-    base_files = gitops_base_files(
-        name=args.name,
-        namespace=namespace,
-        image_repo=args.image_repo,
-        template=template,
-        observability_mode=args.observability_mode or template.default_observability_mode,
-        base_tag=args.dev_tag,
-        description=args.description,
-        image_pull_secret=args.image_pull_secret,
-        dev_host=dev_host,
-        add_app_component_label=hasattr(args, 'add_on') and args.add_on == 'database',
-    )
-    
-    # Add database addon if requested
-    if hasattr(args, 'add_on') and args.add_on == 'database':
-        db_engine = getattr(args, 'db_engine', 'postgres')
-        migration_command = getattr(args, 'migration_command', '')
-        db_addon_files = gitops_database_files(
+    if template.key == "wordpress":
+        base_files = wordpress_base_files(
             name=args.name,
             namespace=namespace,
-            db_engine=db_engine,
             image_repo=args.image_repo,
-            base_tag=args.dev_tag,
-            migration_command=migration_command,
+            image_pull_secret=args.image_pull_secret,
+            dev_host=dev_host,
         )
-        base_files.update(db_addon_files)
-        
-        # Update kustomization.yaml to include database resources
-        kustomization_content = base_files['kustomization.yaml']
-        db_addon_resources = [
-            f"  - {args.name}-{db_engine}-statefulset.yaml",
-            f"  - {args.name}-{db_engine}-service.yaml",
-            f"  - networkpolicy-allow-{db_engine}-egress.yaml",
-            f"  - networkpolicy-allow-{db_engine}-ingress.yaml",
-            f"  - {args.name}-{db_engine}-secret.enc.yaml",
-        ]
-        if migration_command or db_engine == 'postgres':
-            db_addon_resources.append(
-                f"  - {args.name}-{'migrate' if db_engine == 'postgres' else 'init'}-job.yaml"
+        dev_overlay = wordpress_overlay_files(
+            name=args.name,
+            namespace=namespace,
+            env_name="dev",
+            replicas=args.dev_replicas,
+            cpu_request="50m",
+            memory_request="64Mi",
+            cpu_limit="300m",
+            memory_limit="256Mi",
+            prod_host=prod_host,
+        )
+        prod_overlay = wordpress_overlay_files(
+            name=args.name,
+            namespace=namespace,
+            env_name="prod",
+            replicas=args.prod_replicas,
+            cpu_request="100m",
+            memory_request="128Mi",
+            cpu_limit="500m",
+            memory_limit="512Mi",
+            prod_host=prod_host,
+        )
+    else:
+        base_files = gitops_base_files(
+            name=args.name,
+            namespace=namespace,
+            image_repo=args.image_repo,
+            template=template,
+            observability_mode=args.observability_mode or template.default_observability_mode,
+            base_tag=args.dev_tag,
+            description=args.description,
+            image_pull_secret=args.image_pull_secret,
+            dev_host=dev_host,
+            add_app_component_label=hasattr(args, 'add_on') and args.add_on == 'database',
+        )
+
+        if hasattr(args, 'add_on') and args.add_on == 'database':
+            db_engine = getattr(args, 'db_engine', 'postgres')
+            migration_command = getattr(args, 'migration_command', '')
+            db_addon_files = gitops_database_files(
+                name=args.name,
+                namespace=namespace,
+                db_engine=db_engine,
+                image_repo=args.image_repo,
+                base_tag=args.dev_tag,
+                migration_command=migration_command,
             )
-        
-        # Insert database resources before the final resources
-        kustomization_content = kustomization_content.rstrip() + "\n" + "\n".join(db_addon_resources) + "\n"
-        base_files['kustomization.yaml'] = kustomization_content
-    
+            base_files.update(db_addon_files)
+
+            kustomization_content = base_files['kustomization.yaml']
+            db_addon_resources = [
+                f"  - {args.name}-{db_engine}-statefulset.yaml",
+                f"  - {args.name}-{db_engine}-service.yaml",
+                f"  - networkpolicy-allow-{db_engine}-egress.yaml",
+                f"  - networkpolicy-allow-{db_engine}-ingress.yaml",
+                f"  - {args.name}-{db_engine}-secret.enc.yaml",
+            ]
+            if migration_command or db_engine == 'postgres':
+                db_addon_resources.append(
+                    f"  - {args.name}-{'migrate' if db_engine == 'postgres' else 'init'}-job.yaml"
+                )
+            kustomization_content = kustomization_content.rstrip() + "\n" + "\n".join(db_addon_resources) + "\n"
+            base_files['kustomization.yaml'] = kustomization_content
+
+        container_name = template.container_name
+        dev_overlay = gitops_overlay_files(
+            name=args.name,
+            namespace=namespace,
+            image_repo=args.image_repo,
+            env_name="dev",
+            container_name=container_name,
+            image_tag=args.dev_tag,
+            replicas=args.dev_replicas,
+            cpu_request="50m",
+            memory_request="64Mi",
+            cpu_limit="300m",
+            memory_limit="256Mi",
+            prod_host=prod_host,
+        )
+        prod_overlay = gitops_overlay_files(
+            name=args.name,
+            namespace=namespace,
+            image_repo=args.image_repo,
+            env_name="prod",
+            container_name=container_name,
+            image_tag=args.prod_tag,
+            replicas=args.prod_replicas,
+            cpu_request="100m",
+            memory_request="128Mi",
+            cpu_limit="500m",
+            memory_limit="512Mi",
+            prod_host=prod_host,
+        )
+
     for relative_path, content in base_files.items():
         write_file(app_root / "base" / relative_path, content)
 
-    container_name = template.container_name
-    dev_overlay = gitops_overlay_files(
-        name=args.name,
-        namespace=namespace,
-        image_repo=args.image_repo,
-        env_name="dev",
-        container_name=container_name,
-        image_tag=args.dev_tag,
-        replicas=args.dev_replicas,
-        cpu_request="50m",
-        memory_request="64Mi",
-        cpu_limit="300m",
-        memory_limit="256Mi",
-        prod_host=prod_host,
-    )
     for relative_path, content in dev_overlay.items():
         write_file(app_root / "envs" / "dev" / relative_path, content)
 
-    prod_overlay = gitops_overlay_files(
-        name=args.name,
-        namespace=namespace,
-        image_repo=args.image_repo,
-        env_name="prod",
-        container_name=container_name,
-        image_tag=args.prod_tag,
-        replicas=args.prod_replicas,
-        cpu_request="100m",
-        memory_request="128Mi",
-        cpu_limit="500m",
-        memory_limit="512Mi",
-        prod_host=prod_host,
-    )
     for relative_path, content in prod_overlay.items():
         write_file(app_root / "envs" / "prod" / relative_path, content)
 
@@ -1695,6 +3780,9 @@ def main() -> None:
     args = parse_args()
     validate_service_name(args.name)
 
+    if args.template == "wordpress" and args.image_pull_secret == "ghcr-pull-secret":
+        args.image_pull_secret = ""
+
     base_template = TEMPLATES[args.template]
     template = TemplateSpec(
         key=base_template.key,
@@ -1714,24 +3802,35 @@ def main() -> None:
     repo_output_dir = Path(args.repo_output_dir).resolve() if args.repo_output_dir else Path(f"/tmp/{args.name}-repo")
 
     ensure_gitops_root(gitops_root)
-    ensure_repo_output_dir(repo_output_dir, args.force)
-
-    scaffold_repo(args, template, repo_output_dir)
+    if template.key != "wordpress":
+        ensure_repo_output_dir(repo_output_dir, args.force)
+        scaffold_repo(args, template, repo_output_dir)
     scaffold_gitops(args, template, gitops_root, namespace, dev_host, prod_host)
 
-    print(f"Generated service repo: {repo_output_dir}")
+    if template.key != "wordpress":
+        print(f"Generated service repo: {repo_output_dir}")
+    else:
+        print("No application repo scaffold generated for wordpress template.")
     print(f"Generated GitOps manifests under: {gitops_root / 'apps' / args.name}")
     print(f"Dev app manifest: {gitops_root / 'environments' / 'dev' / 'workloads' / f'{args.name}-app.yaml'}")
     print(f"Prod app manifest (not auto-enabled in single-cluster mode): {gitops_root / 'environments' / 'prod' / 'workloads' / f'{args.name}-app.yaml'}")
     print(f"Catalog metadata entry: {gitops_root / 'services.yaml'}")
     print("Next steps:")
-    print(f"  1. Review the generated repo files in {repo_output_dir}")
-    print(f"  2. Run ./scripts/render-kustomize.sh {gitops_root / 'apps' / args.name / 'envs' / 'dev'}")
-    print(
-        f"  3. Open a PR in the workloads repo with apps/{args.name}, bootstrap/project-homelab.yaml, services.yaml, and environments/dev/workloads/{args.name}-app.yaml"
-    )
-    print("  4. Replace the default runbook URL in services.yaml if this service needs a dedicated runbook.")
-    print("  5. Keep environments/prod/workloads/kustomization.yaml unchanged until a dedicated prod target exists.")
+    if template.key != "wordpress":
+        print(f"  1. Review the generated repo files in {repo_output_dir}")
+        print(f"  2. Run ./scripts/render-kustomize.sh {gitops_root / 'apps' / args.name / 'envs' / 'dev'}")
+        print(
+            f"  3. Open a PR in the workloads repo with apps/{args.name}, bootstrap/project-homelab.yaml, services.yaml, and environments/dev/workloads/{args.name}-app.yaml"
+        )
+        print("  4. Replace the default runbook URL in services.yaml if this service needs a dedicated runbook.")
+        print("  5. Keep environments/prod/workloads/kustomization.yaml unchanged until a dedicated prod target exists.")
+    else:
+        print(f"  1. Run ./scripts/render-kustomize.sh {gitops_root / 'apps' / args.name / 'envs' / 'dev'}")
+        print(
+            f"  2. Open a PR in the workloads repo with apps/{args.name}, bootstrap/project-homelab.yaml, services.yaml, and environments/dev/workloads/{args.name}-app.yaml"
+        )
+        print("  3. Rotate the generated SOPS secret placeholders before syncing the WordPress deployment.")
+        print("  4. Keep environments/prod/workloads/kustomization.yaml unchanged until a dedicated prod target exists.")
 
 
 if __name__ == "__main__":
