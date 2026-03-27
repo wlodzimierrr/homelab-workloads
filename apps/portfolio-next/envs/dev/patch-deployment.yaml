@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-next
+  namespace: portfolio-next
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/wlodzimierrr/portfolio-next:0.1.0
+          env:
+            - name: APP_ENV
+              value: dev
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi

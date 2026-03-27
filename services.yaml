@@ -91,3 +91,20 @@ services:
         namespace: homelab-wordpress
         argo_app: homelab-wordpress-prod
         public_host: 'homelab-wordpress.homelab.local'
+  - service_id: portfolio-next
+    name: 'Portfolio Next'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/portfolio-next'
+    runbook_url: 'https://github.com/wlodzimierrr/portfolio-next'
+    description: 'portfolio website'
+    observability:
+      mode: app-native
+    envs:
+      - name: dev
+        namespace: portfolio-next
+        argo_app: portfolio-next-dev
+      - name: prod
+        namespace: portfolio-next
+        argo_app: portfolio-next-prod
+        public_host: 'portfolio-next.homelab.local'

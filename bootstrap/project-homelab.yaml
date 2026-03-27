@@ -131,3 +131,19 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: portfolio-next
+  namespace: argocd
+spec:
+  description: portfolio website resources in portfolio-next namespace only
+  sourceRepos:
+    - https://github.com/wlodzimierrr/homelab-workloads.git
+  destinations:
+    - namespace: portfolio-next
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace

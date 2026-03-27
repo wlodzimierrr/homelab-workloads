@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio-next
+  namespace: portfolio-next
+spec:
+  rules:
+    - host: portfolio-next.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portfolio-next
+                port:
+                  number: 80
