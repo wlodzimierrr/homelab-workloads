@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - wordpress-db-secret.enc.yaml
+  - persistentvolumeclaim.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - mysql-service.yaml
+  - mysql-statefulset.yaml
+  - networkpolicy-default-deny.yaml
+  - networkpolicy-allow-dns-egress.yaml
+  - networkpolicy-allow-ingress.yaml
+  - networkpolicy-allow-mysql-egress.yaml
+  - networkpolicy-allow-mysql-ingress.yaml

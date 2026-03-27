@@ -115,3 +115,19 @@ spec:
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: homelab-wordpress
+  namespace: argocd
+spec:
+  description: wordpress app resources in homelab-wordpress namespace only
+  sourceRepos:
+    - https://github.com/wlodzimierrr/homelab-workloads.git
+  destinations:
+    - namespace: homelab-wordpress
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
