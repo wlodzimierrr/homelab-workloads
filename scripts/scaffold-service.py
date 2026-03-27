@@ -87,7 +87,7 @@ def build_python_fastapi_repo_files(name: str, description: str, image_repo: str
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -224,7 +224,7 @@ def build_python_django_repo_files(name: str, description: str, image_repo: str)
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -416,7 +416,7 @@ def build_python_flask_repo_files(name: str, description: str, image_repo: str) 
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -544,7 +544,7 @@ def build_node_express_repo_files(name: str, description: str, image_repo: str) 
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -699,7 +699,7 @@ def build_node_nestjs_repo_files(name: str, description: str, image_repo: str) -
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -845,7 +845,7 @@ def build_static_nginx_repo_files(name: str, description: str, image_repo: str) 
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -963,7 +963,7 @@ def build_react_repo_files(name: str, description: str, image_repo: str) -> dict
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -1129,7 +1129,7 @@ def build_nextjs_repo_files(name: str, description: str, image_repo: str) -> dic
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -1303,7 +1303,7 @@ def build_vue_repo_files(name: str, description: str, image_repo: str) -> dict[s
 
             ## Image
 
-            CI publishes `sha-<commit>` tags to `{image_repo}` on pushes to `main`.
+            CI publishes `sha-<commit>` and `latest` tags to `{image_repo}` on pushes to `main`.
             """,
             name=name,
             description=description,
@@ -1568,8 +1568,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--namespace", default="", help="Kubernetes namespace; defaults to the service name")
     parser.add_argument("--dev-host", default="", help="Dev ingress host; defaults to <name>.dev.homelab.local")
     parser.add_argument("--prod-host", default="", help="Prod ingress host; defaults to <name>.homelab.local")
-    parser.add_argument("--dev-tag", default="0.1.0", help="Initial dev image tag")
-    parser.add_argument("--prod-tag", default="0.1.0", help="Initial prod image tag")
+    parser.add_argument("--dev-tag", default="latest", help="Initial dev image tag")
+    parser.add_argument("--prod-tag", default="latest", help="Initial prod image tag")
     parser.add_argument("--image-pull-secret", default="ghcr-pull-secret", help="Image pull secret; use '' for public images")
     parser.add_argument("--dev-replicas", type=int, default=1, help="Initial dev replica count")
     parser.add_argument("--prod-replicas", type=int, default=2, help="Initial prod replica count")
@@ -1740,6 +1740,7 @@ def gitops_database_files(
     migration_command: str = "",
 ) -> dict[str, str]:
     """Generate database add-on manifests for the service."""
+    base_image_pull_policy = "Always" if base_tag == "latest" else "IfNotPresent"
     db_name = f"{name}-{db_engine}"
     db_service_name = f"{db_name}"
     db_port = 5432 if db_engine == "postgres" else 3306
@@ -2067,7 +2068,7 @@ spec:
                       containers:
                         - name: migrate
                           image: {image_repo}:{base_tag}
-                          imagePullPolicy: IfNotPresent
+                          imagePullPolicy: {base_image_pull_policy}
                           command:
                             - /bin/sh
                             - -c
@@ -2104,6 +2105,7 @@ spec:
                 namespace=namespace,
                 image_repo=image_repo,
                 base_tag=base_tag,
+                base_image_pull_policy=base_image_pull_policy,
                 db_service_name=db_service_name,
                 migration_cmd=migration_cmd,
                 db_name=db_name,
@@ -2185,6 +2187,7 @@ def gitops_base_files(
     dev_host: str,
     add_app_component_label: bool = False,
 ) -> dict[str, str]:
+    base_image_pull_policy = "Always" if base_tag == "latest" else "IfNotPresent"
     serviceaccount = render_template(
         """
         apiVersion: v1
@@ -2251,7 +2254,7 @@ def gitops_base_files(
         "      containers:",
         f"        - name: {template.container_name}",
         f"          image: {image_repo}:{base_tag}",
-        "          imagePullPolicy: IfNotPresent",
+        f"          imagePullPolicy: {base_image_pull_policy}",
         "          ports:",
         "            - name: http",
         f"              containerPort: {template.container_port}",
@@ -2506,6 +2509,9 @@ def wordpress_base_files(
         "networkpolicy-allow-mysql-ingress.yaml",
     ]
 
+    base_tag = "latest"
+    base_image_pull_policy = "Always" if base_tag == "latest" else "IfNotPresent"
+
     return {
         "kustomization.yaml": (
             "apiVersion: kustomize.config.k8s.io/v1beta1\n"
@@ -2608,8 +2614,8 @@ def wordpress_base_files(
                   serviceAccountName: {name}
                   containers:
                     - name: web
-                      image: {image_repo}
-                      imagePullPolicy: IfNotPresent
+                      image: {image_repo}:{base_tag}
+                      imagePullPolicy: {base_image_pull_policy}
                       ports:
                         - name: http
                           containerPort: 80
@@ -2663,6 +2669,8 @@ def wordpress_base_files(
             image_repo=image_repo,
             db_service_name=db_service_name,
             db_secret_name=db_secret_name,
+            base_tag=base_tag,
+            base_image_pull_policy=base_image_pull_policy,
         ),
         "service.yaml": render_template(
             """
@@ -3064,6 +3072,7 @@ def gitops_overlay_files(
     memory_limit: str,
     prod_host: str,
 ) -> dict[str, str]:
+    image_pull_policy = "Always" if image_tag == "latest" else "IfNotPresent"
     files = {
         "kustomization.yaml": render_template(
             """
@@ -3092,6 +3101,7 @@ def gitops_overlay_files(
                   containers:
                     - name: {container_name}
                       image: {image_repo}:{image_tag}
+                      imagePullPolicy: {image_pull_policy}
                       env:
                         - name: APP_ENV
                           value: {env_name}
@@ -3109,6 +3119,7 @@ def gitops_overlay_files(
             container_name=container_name,
             image_repo=image_repo,
             image_tag=image_tag,
+            image_pull_policy=image_pull_policy,
             env_name=env_name,
             cpu_request=cpu_request,
             memory_request=memory_request,
@@ -3287,7 +3298,9 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+                      tags: |
+                        {image_repo}:sha-${{{{ github.sha }}}}
+                        {image_repo}:latest
             """,
             name=name,
             image_repo=image_repo,
@@ -3362,7 +3375,9 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+                      tags: |
+                        {image_repo}:sha-${{{{ github.sha }}}}
+                        {image_repo}:latest
             """,
             name=name,
             image_repo=image_repo,
@@ -3434,7 +3449,9 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+                      tags: |
+                        {image_repo}:sha-${{{{ github.sha }}}}
+                        {image_repo}:latest
             """,
             name=name,
             image_repo=image_repo,
@@ -3507,7 +3524,9 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-                      tags: {image_repo}:sha-${{{{ github.sha }}}}
+                      tags: |
+                        {image_repo}:sha-${{{{ github.sha }}}}
+                        {image_repo}:latest
             """,
             name=name,
             image_repo=image_repo,
@@ -3572,7 +3591,9 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                 with:
                   context: .
                   push: true
-                  tags: {image_repo}:sha-${{{{ github.sha }}}}
+                  tags: |
+                    {image_repo}:sha-${{{{ github.sha }}}}
+                    {image_repo}:latest
         """,
         name=name,
         image_repo=image_repo,

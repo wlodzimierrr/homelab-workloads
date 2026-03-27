@@ -19,8 +19,8 @@ spec:
       serviceAccountName: portfolio-next
       containers:
         - name: web
-          image: ghcr.io/wlodzimierrr/portfolio-next:0.1.0
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/wlodzimierrr/portfolio-next:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000

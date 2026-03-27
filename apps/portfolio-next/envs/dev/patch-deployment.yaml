@@ -9,7 +9,8 @@ spec:
     spec:
       containers:
         - name: web
-          image: ghcr.io/wlodzimierrr/portfolio-next:0.1.0
+          image: ghcr.io/wlodzimierrr/portfolio-next:latest
+          imagePullPolicy: Always
           env:
             - name: APP_ENV
               value: dev

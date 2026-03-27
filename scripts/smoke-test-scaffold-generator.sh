@@ -49,6 +49,12 @@ grep -q "repo_url: 'https://github.com/example/scaffold-gen-test'" "$gitops_root
 grep -q "mode: app-native" "$gitops_root/services.yaml"
 grep -q "public_host: 'scaffold-gen-test.example.com'" "$gitops_root/services.yaml"
 grep -q "path: /metrics" "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml"
+grep -q "image: ghcr.io/example/scaffold-gen-test:latest" "$gitops_root/apps/scaffold-gen-test/base/deployment.yaml"
+grep -q "imagePullPolicy: Always" "$gitops_root/apps/scaffold-gen-test/base/deployment.yaml"
+grep -q "image: ghcr.io/example/scaffold-gen-test:latest" "$gitops_root/apps/scaffold-gen-test/envs/dev/patch-deployment.yaml"
+grep -q "imagePullPolicy: Always" "$gitops_root/apps/scaffold-gen-test/envs/dev/patch-deployment.yaml"
+grep -q "ghcr.io/example/scaffold-gen-test:latest" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
+grep -q "ghcr.io/example/scaffold-gen-test:sha-\${{ github.sha }}" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
 
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/prod" >/dev/null
