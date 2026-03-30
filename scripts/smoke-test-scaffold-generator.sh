@@ -145,4 +145,157 @@ done
 # Verify kustomize can render the MySQL variant
 CI=true HOME="$smoke_home" "$gitops_root_mysql/scripts/render-kustomize.sh" "$gitops_root_mysql/apps/scaffold-smoke-mysql/base" >/dev/null
 
+# Test node-express template
+echo "Testing node-express template..."
+repo_output_dir_node="$tmp_root/scaffold-smoke-node-repo"
+gitops_root_node="$tmp_root/workloads-node"
+cp -R "$repo_root" "$gitops_root_node"
+rm -rf "$gitops_root_node/.git"
+
+python3 "$repo_root/scripts/scaffold-service.py" \
+  --name scaffold-smoke-node \
+  --description "Smoke-test scaffolded Express.js service" \
+  --image-repo ghcr.io/example/scaffold-smoke-node \
+  --repo-url https://github.com/example/scaffold-smoke-node \
+  --owner-email ops@example.com \
+  --template node-express \
+  --prod-host scaffold-smoke-node.example.com \
+  --gitops-root "$gitops_root_node" \
+  --repo-output-dir "$repo_output_dir_node" \
+  --image-pull-secret ""
+
+node_required_paths=(
+  "$repo_output_dir_node/.github/workflows/build-scaffold-smoke-node.yml"
+  "$repo_output_dir_node/src/index.js"
+  "$repo_output_dir_node/Dockerfile"
+  "$repo_output_dir_node/package.json"
+  "$gitops_root_node/apps/scaffold-smoke-node/base/kustomization.yaml"
+  "$gitops_root_node/apps/scaffold-smoke-node/base/servicemonitor.yaml"
+  "$gitops_root_node/apps/scaffold-smoke-node/envs/dev/kustomization.yaml"
+  "$gitops_root_node/apps/scaffold-smoke-node/envs/prod/kustomization.yaml"
+  "$gitops_root_node/environments/dev/workloads/scaffold-smoke-node-app.yaml"
+  "$gitops_root_node/environments/prod/workloads/scaffold-smoke-node-app.yaml"
+)
+
+for path in "${node_required_paths[@]}"; do
+  if [[ ! -f "$path" ]]; then
+    echo "missing node-express generated file: $path" >&2
+    exit 1
+  fi
+done
+
+grep -q "service_id: scaffold-smoke-node" "$gitops_root_node/services.yaml"
+grep -q "mode: app-native" "$gitops_root_node/services.yaml"
+grep -q "path: /metrics" "$gitops_root_node/apps/scaffold-smoke-node/base/servicemonitor.yaml"
+grep -q "setup-node" "$repo_output_dir_node/.github/workflows/build-scaffold-smoke-node.yml"
+
+CI=true HOME="$smoke_home" "$gitops_root_node/scripts/render-kustomize.sh" "$gitops_root_node/apps/scaffold-smoke-node/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_node/scripts/render-kustomize.sh" "$gitops_root_node/apps/scaffold-smoke-node/envs/prod" >/dev/null
+
+# Test vue template
+echo "Testing vue template..."
+repo_output_dir_vue="$tmp_root/scaffold-smoke-vue-repo"
+gitops_root_vue="$tmp_root/workloads-vue"
+cp -R "$repo_root" "$gitops_root_vue"
+rm -rf "$gitops_root_vue/.git"
+
+python3 "$repo_root/scripts/scaffold-service.py"   --name scaffold-smoke-vue   --description "Smoke-test scaffolded Vue service"   --image-repo ghcr.io/example/scaffold-smoke-vue   --repo-url https://github.com/example/scaffold-smoke-vue   --owner-email ops@example.com   --template vue   --prod-host scaffold-smoke-vue.example.com   --gitops-root "$gitops_root_vue"   --repo-output-dir "$repo_output_dir_vue"   --image-pull-secret ""
+
+vue_required_paths=(
+  "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
+  "$repo_output_dir_vue/src/App.vue"
+  "$repo_output_dir_vue/src/main.js"
+  "$repo_output_dir_vue/Dockerfile"
+  "$repo_output_dir_vue/package.json"
+  "$gitops_root_vue/apps/scaffold-smoke-vue/base/kustomization.yaml"
+  "$gitops_root_vue/apps/scaffold-smoke-vue/envs/dev/kustomization.yaml"
+  "$gitops_root_vue/apps/scaffold-smoke-vue/envs/prod/kustomization.yaml"
+  "$gitops_root_vue/environments/dev/workloads/scaffold-smoke-vue-app.yaml"
+  "$gitops_root_vue/environments/prod/workloads/scaffold-smoke-vue-app.yaml"
+)
+
+for path in "${vue_required_paths[@]}"; do
+  if [[ ! -f "$path" ]]; then
+    echo "missing vue generated file: $path" >&2
+    exit 1
+  fi
+done
+
+grep -q "service_id: scaffold-smoke-vue" "$gitops_root_vue/services.yaml"
+grep -q "mode: ingress-derived" "$gitops_root_vue/services.yaml"
+grep -q "path: /" "$gitops_root_vue/apps/scaffold-smoke-vue/base/deployment.yaml"
+if [[ -f "$gitops_root_vue/apps/scaffold-smoke-vue/base/servicemonitor.yaml" ]]; then
+  echo "vue template should not generate a ServiceMonitor" >&2
+  exit 1
+fi
+grep -q "FROM node:20-alpine AS build" "$repo_output_dir_vue/Dockerfile"
+grep -q "FROM nginx:1.27-alpine" "$repo_output_dir_vue/Dockerfile"
+grep -q "setup-node" "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
+grep -q "npm run build" "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
+
+CI=true HOME="$smoke_home" "$gitops_root_vue/scripts/render-kustomize.sh" "$gitops_root_vue/apps/scaffold-smoke-vue/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_vue/scripts/render-kustomize.sh" "$gitops_root_vue/apps/scaffold-smoke-vue/envs/prod" >/dev/null
+
+# Test wordpress template
+echo "Testing wordpress template..."
+repo_output_dir_wordpress="$tmp_root/scaffold-smoke-wordpress-repo"
+gitops_root_wordpress="$tmp_root/workloads-wordpress"
+cp -R "$repo_root" "$gitops_root_wordpress"
+rm -rf "$gitops_root_wordpress/.git"
+
+python3 "$repo_root/scripts/scaffold-service.py"   --name scaffold-smoke-wordpress   --description "Smoke-test scaffolded WordPress service"   --image-repo wordpress:latest   --repo-url https://github.com/example/scaffold-smoke-wordpress   --owner-email ops@example.com   --template wordpress   --prod-host scaffold-smoke-wordpress.example.com   --gitops-root "$gitops_root_wordpress"   --repo-output-dir "$repo_output_dir_wordpress"   --image-pull-secret ""
+
+wordpress_required_paths=(
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/kustomization.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/persistentvolumeclaim.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/mysql-service.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/mysql-statefulset.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/networkpolicy-allow-mysql-egress.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/networkpolicy-allow-mysql-ingress.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/kustomization.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret-generator.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/prod/kustomization.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/prod/wordpress-db-secret-generator.yaml"
+  "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/prod/wordpress-db-secret.enc.yaml"
+  "$gitops_root_wordpress/environments/dev/workloads/scaffold-smoke-wordpress-app.yaml"
+  "$gitops_root_wordpress/environments/prod/workloads/scaffold-smoke-wordpress-app.yaml"
+)
+
+for path in "${wordpress_required_paths[@]}"; do
+  if [[ ! -f "$path" ]]; then
+    echo "missing wordpress generated file: $path" >&2
+    exit 1
+  fi
+done
+
+wordpress_gitops_file_count="$(find "$gitops_root_wordpress/apps/scaffold-smoke-wordpress" -type f | wc -l | tr -d ' ')"
+if [[ "$wordpress_gitops_file_count" != "23" ]]; then
+  echo "unexpected wordpress manifest file count: $wordpress_gitops_file_count" >&2
+  exit 1
+fi
+
+if [[ -d "$repo_output_dir_wordpress" ]] && find "$repo_output_dir_wordpress" -type f | grep -q .; then
+  echo "wordpress template should not generate an application repo scaffold" >&2
+  exit 1
+fi
+
+if [[ -f "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/servicemonitor.yaml" ]]; then
+  echo "wordpress template should not generate a ServiceMonitor" >&2
+  exit 1
+fi
+
+grep -q "service_id: scaffold-smoke-wordpress" "$gitops_root_wordpress/services.yaml"
+grep -q "mode: ingress-derived" "$gitops_root_wordpress/services.yaml"
+grep -q "path: /wp-login.php" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/base/deployment.yaml"
+grep -q "WORDPRESS_DB_PASSWORD" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
+grep -q "MYSQL_ROOT_PASSWORD" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
+grep -q "sops:" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
+
+CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/prod" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/environments/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/environments/prod" >/dev/null
+"$gitops_root_wordpress/scripts/check-secrets-guardrails.sh" >/dev/null
+
 echo "scaffold generator smoke test passed"
