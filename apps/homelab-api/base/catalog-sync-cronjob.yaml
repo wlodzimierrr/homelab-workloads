@@ -40,6 +40,8 @@ spec:
                   value: info
                 - name: PORTAL_ENV
                   value: dev
+                - name: SERVICE_REGISTRY_SYNC_NAMESPACES
+                  value: homelab-api,homelab-web,portfolio-next,scaffold-smoke,homelab-wordpress
                 - name: REGISTRY_WARN_AFTER_MINUTES
                   value: "20"
                 - name: REGISTRY_STALE_AFTER_MINUTES
