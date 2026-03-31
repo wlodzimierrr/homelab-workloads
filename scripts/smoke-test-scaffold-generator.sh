@@ -29,7 +29,6 @@ required_paths=(
   "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
   "$repo_output_dir/app/main.py"
   "$gitops_root/apps/scaffold-gen-test/base/kustomization.yaml"
-  "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml"
   "$gitops_root/apps/scaffold-gen-test/envs/dev/kustomization.yaml"
   "$gitops_root/apps/scaffold-gen-test/envs/prod/kustomization.yaml"
   "$gitops_root/environments/dev/workloads/scaffold-gen-test-app.yaml"
@@ -46,9 +45,16 @@ done
 
 grep -q "service_id: scaffold-gen-test" "$gitops_root/services.yaml"
 grep -q "repo_url: 'https://github.com/example/scaffold-gen-test'" "$gitops_root/services.yaml"
-grep -q "mode: app-native" "$gitops_root/services.yaml"
+grep -q "mode: ingress-derived" "$gitops_root/services.yaml"
 grep -q "public_host: 'scaffold-gen-test.example.com'" "$gitops_root/services.yaml"
-grep -q "path: /metrics" "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml"
+if [[ -f "$gitops_root/apps/scaffold-gen-test/base/servicemonitor.yaml" ]]; then
+  echo "python-fastapi template should not generate a ServiceMonitor" >&2
+  exit 1
+fi
+grep -q "peter-evans/create-pull-request@v7" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
+grep -q "Deploy scaffold-gen-test: \${{ env.TARGET_TAG }} to dev" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
+grep -q "PORTAL_DEPLOYMENT_API_URL" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
+grep -q "requestKey\": \"gitops-pr:\${PR_NUMBER}:\${SERVICE_ID}:dev:deploy\"" "$repo_output_dir/.github/workflows/build-scaffold-gen-test.yml"
 
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root/scripts/render-kustomize.sh" "$gitops_root/apps/scaffold-gen-test/envs/prod" >/dev/null
@@ -188,6 +194,7 @@ grep -q "service_id: scaffold-smoke-node" "$gitops_root_node/services.yaml"
 grep -q "mode: app-native" "$gitops_root_node/services.yaml"
 grep -q "path: /metrics" "$gitops_root_node/apps/scaffold-smoke-node/base/servicemonitor.yaml"
 grep -q "setup-node" "$repo_output_dir_node/.github/workflows/build-scaffold-smoke-node.yml"
+grep -q "peter-evans/create-pull-request@v7" "$repo_output_dir_node/.github/workflows/build-scaffold-smoke-node.yml"
 
 CI=true HOME="$smoke_home" "$gitops_root_node/scripts/render-kustomize.sh" "$gitops_root_node/apps/scaffold-smoke-node/envs/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root_node/scripts/render-kustomize.sh" "$gitops_root_node/apps/scaffold-smoke-node/envs/prod" >/dev/null
@@ -232,9 +239,62 @@ grep -q "FROM node:20-alpine AS build" "$repo_output_dir_vue/Dockerfile"
 grep -q "FROM nginx:1.27-alpine" "$repo_output_dir_vue/Dockerfile"
 grep -q "setup-node" "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
 grep -q "npm run build" "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
+grep -q "peter-evans/create-pull-request@v7" "$repo_output_dir_vue/.github/workflows/build-scaffold-smoke-vue.yml"
 
 CI=true HOME="$smoke_home" "$gitops_root_vue/scripts/render-kustomize.sh" "$gitops_root_vue/apps/scaffold-smoke-vue/envs/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root_vue/scripts/render-kustomize.sh" "$gitops_root_vue/apps/scaffold-smoke-vue/envs/prod" >/dev/null
+
+# Test nextjs template
+echo "Testing nextjs template..."
+repo_output_dir_nextjs="$tmp_root/scaffold-smoke-nextjs-repo"
+gitops_root_nextjs="$tmp_root/workloads-nextjs"
+cp -R "$repo_root" "$gitops_root_nextjs"
+rm -rf "$gitops_root_nextjs/.git"
+
+python3 "$repo_root/scripts/scaffold-service.py" \
+  --name scaffold-smoke-nextjs \
+  --description "Smoke-test scaffolded Next.js service" \
+  --image-repo ghcr.io/example/scaffold-smoke-nextjs \
+  --repo-url https://github.com/example/scaffold-smoke-nextjs \
+  --owner-email ops@example.com \
+  --template nextjs \
+  --prod-host scaffold-smoke-nextjs.example.com \
+  --gitops-root "$gitops_root_nextjs" \
+  --repo-output-dir "$repo_output_dir_nextjs" \
+  --image-pull-secret ""
+
+nextjs_required_paths=(
+  "$repo_output_dir_nextjs/.github/workflows/build-scaffold-smoke-nextjs.yml"
+  "$repo_output_dir_nextjs/src/app/page.tsx"
+  "$repo_output_dir_nextjs/src/app/layout.tsx"
+  "$repo_output_dir_nextjs/next.config.js"
+  "$repo_output_dir_nextjs/package.json"
+  "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/base/kustomization.yaml"
+  "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/envs/dev/kustomization.yaml"
+  "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/envs/prod/kustomization.yaml"
+  "$gitops_root_nextjs/environments/dev/workloads/scaffold-smoke-nextjs-app.yaml"
+  "$gitops_root_nextjs/environments/prod/workloads/scaffold-smoke-nextjs-app.yaml"
+)
+
+for path in "${nextjs_required_paths[@]}"; do
+  if [[ ! -f "$path" ]]; then
+    echo "missing nextjs generated file: $path" >&2
+    exit 1
+  fi
+done
+
+grep -q "service_id: scaffold-smoke-nextjs" "$gitops_root_nextjs/services.yaml"
+grep -q "mode: ingress-derived" "$gitops_root_nextjs/services.yaml"
+if [[ -f "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/base/servicemonitor.yaml" ]]; then
+  echo "nextjs template should not generate a ServiceMonitor" >&2
+  exit 1
+fi
+grep -q "setup-node" "$repo_output_dir_nextjs/.github/workflows/build-scaffold-smoke-nextjs.yml"
+grep -q "npm run build" "$repo_output_dir_nextjs/.github/workflows/build-scaffold-smoke-nextjs.yml"
+grep -q "peter-evans/create-pull-request@v7" "$repo_output_dir_nextjs/.github/workflows/build-scaffold-smoke-nextjs.yml"
+
+CI=true HOME="$smoke_home" "$gitops_root_nextjs/scripts/render-kustomize.sh" "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/envs/dev" >/dev/null
+CI=true HOME="$smoke_home" "$gitops_root_nextjs/scripts/render-kustomize.sh" "$gitops_root_nextjs/apps/scaffold-smoke-nextjs/envs/prod" >/dev/null
 
 # Test wordpress template
 echo "Testing wordpress template..."
