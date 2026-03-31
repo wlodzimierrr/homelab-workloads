@@ -42,6 +42,162 @@ def yaml_string(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def scaffolded_dev_deploy_job(name: str, image_repo: str) -> str:
+    return render_template(
+        """
+          deploy-dev:
+            runs-on: ubuntu-latest
+            needs: build
+            if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+            permissions:
+              contents: read
+            env:
+              GITOPS_REPO: wlodzimierrr/homelab-workloads
+              SERVICE_ID: {name}
+              IMAGE_REPO: {image_repo}
+              TARGET_TAG: sha-${{{{ github.sha }}}}
+              PORTAL_DEPLOYMENT_API_URL: ${{{{ secrets.PORTAL_DEPLOYMENT_API_URL }}}}
+              PORTAL_DEPLOYMENT_API_TOKEN: ${{{{ secrets.PORTAL_DEPLOYMENT_API_TOKEN }}}}
+            steps:
+              - name: Checkout GitOps repo
+                uses: actions/checkout@v4
+                with:
+                  repository: ${{{{ env.GITOPS_REPO }}}}
+                  token: ${{{{ secrets.HOMELAB_WORKLOADS_REPO_TOKEN }}}}
+                  path: homelab-workloads
+
+              - name: Update dev deployment patch
+                id: update_patch
+                run: |
+                  set -euo pipefail
+
+                  patch_path="homelab-workloads/apps/${{SERVICE_ID}}/envs/dev/patch-deployment.yaml"
+                  if [ ! -f "$patch_path" ]; then
+                    echo "Missing deployment patch: $patch_path"
+                    exit 1
+                  fi
+
+                  current_image_ref=$(sed -nE 's#^[[:space:]]*image:[[:space:]]*([^[:space:]]+)[[:space:]]*$#\\1#p' "$patch_path" | head -n1)
+                  if [ -z "$current_image_ref" ]; then
+                    echo "Could not read current image ref from $patch_path"
+                    exit 1
+                  fi
+
+                  target_image_ref="${{IMAGE_REPO}}:${{TARGET_TAG}}"
+                  if [ "$current_image_ref" = "$target_image_ref" ]; then
+                    echo "updated=false" >> "$GITHUB_OUTPUT"
+                    echo "patch_path=$patch_path" >> "$GITHUB_OUTPUT"
+                    echo "current_image_ref=$current_image_ref" >> "$GITHUB_OUTPUT"
+                    echo "target_image_ref=$target_image_ref" >> "$GITHUB_OUTPUT"
+                    exit 0
+                  fi
+
+                  PATCH_PATH="$patch_path" TARGET_IMAGE_REF="$target_image_ref" python3 - <<'PY'
+                  from pathlib import Path
+                  import os
+
+                  patch_path = Path(os.environ["PATCH_PATH"])
+                  target_image_ref = os.environ["TARGET_IMAGE_REF"]
+
+                  lines = patch_path.read_text(encoding="utf-8").splitlines(keepends=True)
+                  for index, line in enumerate(lines):
+                      if line.lstrip().startswith("image:"):
+                          indent = line[: len(line) - len(line.lstrip())]
+                          newline = "\n" if line.endswith("\n") else ""
+                          lines[index] = f"{{indent}}image: {{target_image_ref}}{{newline}}"
+                          break
+                  else:
+                      raise SystemExit(f"Could not find image field in {{patch_path}}")
+
+                  patch_path.write_text("".join(lines), encoding="utf-8")
+                  PY
+
+                  branch_name="automation/dev-deploy-${{SERVICE_ID}}-${{TARGET_TAG}}-$(date -u +%Y%m%d%H%M%S)"
+                  echo "updated=true" >> "$GITHUB_OUTPUT"
+                  echo "patch_path=$patch_path" >> "$GITHUB_OUTPUT"
+                  echo "current_image_ref=$current_image_ref" >> "$GITHUB_OUTPUT"
+                  echo "target_image_ref=$target_image_ref" >> "$GITHUB_OUTPUT"
+                  echo "branch_name=$branch_name" >> "$GITHUB_OUTPUT"
+
+                  git -C homelab-workloads diff -- "apps/${{SERVICE_ID}}/envs/dev/patch-deployment.yaml"
+
+              - name: Explain no-op
+                if: steps.update_patch.outputs.updated != 'true'
+                run: echo "Dev deployment patch already points at ${{{{ steps.update_patch.outputs.target_image_ref }}}}."
+
+              - name: Create PR in GitOps repo
+                if: steps.update_patch.outputs.updated == 'true'
+                id: create_pr
+                uses: peter-evans/create-pull-request@v7
+                with:
+                  token: ${{{{ secrets.HOMELAB_WORKLOADS_REPO_TOKEN }}}}
+                  path: homelab-workloads
+                  branch: ${{{{ steps.update_patch.outputs.branch_name }}}}
+                  delete-branch: true
+                  title: "Deploy {name}: ${{{{ env.TARGET_TAG }}}} to dev"
+                  commit-message: "chore(dev): deploy {name} image ${{{{ env.TARGET_TAG }}}}"
+                  body: |
+                    Portal-requested dev deploy.
+
+                    - Service: `{name}`
+                    - Target image: `${{{{ steps.update_patch.outputs.target_image_ref }}}}`
+                    - Previous image: `${{{{ steps.update_patch.outputs.current_image_ref }}}}`
+                    - Reason: Publish new scaffolded service image from `${{{{ github.repository }}}}`.
+                    - Triggered by: `${{{{ github.actor }}}}`
+                    - Workflow run: ${{{{ github.server_url }}}}/${{{{ github.repository }}}}/actions/runs/${{{{ github.run_id }}}}
+
+              - name: Record deployment request in portal backend
+                if: steps.update_patch.outputs.updated == 'true'
+                env:
+                  PR_URL: ${{{{ steps.create_pr.outputs.pull-request-url }}}}
+                  PR_NUMBER: ${{{{ steps.create_pr.outputs.pull-request-number }}}}
+                run: |
+                  set -euo pipefail
+
+                  if [ -z "${{PORTAL_DEPLOYMENT_API_URL:-}}" ] || [ -z "${{PORTAL_DEPLOYMENT_API_TOKEN:-}}" ]; then
+                    echo "Skipping deployment record write; PORTAL_DEPLOYMENT_API_URL or PORTAL_DEPLOYMENT_API_TOKEN is not configured."
+                    exit 0
+                  fi
+
+                  api_url="${{PORTAL_DEPLOYMENT_API_URL%/}}/deployments"
+
+                  cat <<EOF >/tmp/deployment-record.json
+                  {{
+                    "serviceId": "${{SERVICE_ID}}",
+                    "env": "dev",
+                    "action": "deploy",
+                    "status": "pending",
+                    "gitPrUrl": "${{PR_URL}}",
+                    "gitPrNumber": ${{PR_NUMBER}},
+                    "imageRef": "${{{{ steps.update_patch.outputs.target_image_ref }}}}",
+                    "argoApp": "${{SERVICE_ID}}-dev",
+                    "gitRef": "${{{{ steps.update_patch.outputs.branch_name }}}}",
+                    "deployReason": "Scaffolded service auto-deploy from ${{{{ github.repository }}}}",
+                    "requestKey": "gitops-pr:${{PR_NUMBER}}:${{SERVICE_ID}}:dev:deploy",
+                    "metadata": {{
+                      "source": "scaffold-build-workflow",
+                      "workflowRunId": "${{GITHUB_RUN_ID}}",
+                      "workflowRunUrl": "${{GITHUB_SERVER_URL}}/${{GITHUB_REPOSITORY}}/actions/runs/${{GITHUB_RUN_ID}}",
+                      "gitopsRepo": "${{GITOPS_REPO}}",
+                      "sourceCommitSha": "${{GITHUB_SHA}}"
+                    }}
+                  }}
+                  EOF
+
+                  if ! curl --fail-with-body --silent --show-error \
+                    -X POST \
+                    -H "Authorization: Bearer ${{PORTAL_DEPLOYMENT_API_TOKEN}}" \
+                    -H "Content-Type: application/json" \
+                    --data @/tmp/deployment-record.json \
+                    "${{api_url}}"; then
+                    echo "Portal deployment API write failed; backend reconciler will backfill from GitOps PR metadata."
+                  fi
+        """,
+        name=name,
+        image_repo=image_repo,
+    )
+
+
 def build_python_fastapi_repo_files(name: str, description: str, image_repo: str) -> dict[str, str]:
     return {
         ".gitignore": dedent(
@@ -1432,7 +1588,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health",
         readiness_path="/health",
         container_name="app",
-        default_observability_mode="app-native",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
     "python-django": TemplateSpec(
@@ -1443,7 +1599,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health/",
         readiness_path="/health/",
         container_name="app",
-        default_observability_mode="app-native",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
     "python-flask": TemplateSpec(
@@ -1454,7 +1610,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health",
         readiness_path="/health",
         container_name="app",
-        default_observability_mode="app-native",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
     "static-nginx": TemplateSpec(
@@ -1487,7 +1643,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/api/health",
         readiness_path="/api/health",
         container_name="web",
-        default_observability_mode="app-native",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
     "vue": TemplateSpec(
@@ -1531,7 +1687,7 @@ TEMPLATES: dict[str, TemplateSpec] = {
         health_path="/health",
         readiness_path="/health",
         container_name="app",
-        default_observability_mode="app-native",
+        default_observability_mode="ingress-derived",
         repo_files={},
     ),
 }
@@ -3249,6 +3405,7 @@ def gitops_appproject_manifest(name: str, namespace: str, description: str, repo
 
 
 def repo_workflow(name: str, image_repo: str, template: str) -> str:
+    deploy_job = scaffolded_dev_deploy_job(name, image_repo)
     if template in ("nextjs", "react", "vue"):
         return render_template(
             """
@@ -3319,9 +3476,11 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
+{deploy_job}
             """,
             name=name,
             image_repo=image_repo,
+            deploy_job=deploy_job,
         )
     if template == "node-nestjs":
         return render_template(
@@ -3396,9 +3555,11 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
+{deploy_job}
             """,
             name=name,
             image_repo=image_repo,
+            deploy_job=deploy_job,
         )
     if template == "node-express":
         return render_template(
@@ -3470,9 +3631,11 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
+{deploy_job}
             """,
             name=name,
             image_repo=image_repo,
+            deploy_job=deploy_job,
         )
     if template == "python-fastapi":
         return render_template(
@@ -3545,9 +3708,11 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
+{deploy_job}
             """,
             name=name,
             image_repo=image_repo,
+            deploy_job=deploy_job,
         )
 
     return render_template(
@@ -3612,9 +3777,11 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                   tags: |
                     {image_repo}:sha-${{{{ github.sha }}}}
                     {image_repo}:latest
+{deploy_job}
         """,
         name=name,
         image_repo=image_repo,
+        deploy_job=deploy_job,
     )
 
 
