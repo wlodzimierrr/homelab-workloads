@@ -65,7 +65,7 @@ services:
     runbook_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
     description: 'Scaffold smoke-test service for validating platform bootstrapping and network reachability'
     observability:
-      mode: app-native
+      mode: ingress-derived
     envs:
       - name: dev
         namespace: scaffold-smoke
@@ -74,3 +74,37 @@ services:
         namespace: scaffold-smoke
         argo_app: scaffold-smoke-prod
         public_host: 'scaffold-smoke.homelab.local'
+  - service_id: homelab-wordpress
+    name: 'Homelab Wordpress'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/homelab-workloads'
+    runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads'
+    description: 'wordpress app'
+    observability:
+      mode: ingress-derived
+    envs:
+      - name: dev
+        namespace: homelab-wordpress
+        argo_app: homelab-wordpress-dev
+      - name: prod
+        namespace: homelab-wordpress
+        argo_app: homelab-wordpress-prod
+        public_host: 'homelab-wordpress.homelab.local'
+  - service_id: portfolio-next
+    name: 'Portfolio Next'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/portfolio-next'
+    runbook_url: 'https://github.com/wlodzimierrr/portfolio-next'
+    description: 'Portfolio Next app'
+    observability:
+      mode: ingress-derived
+    envs:
+      - name: dev
+        namespace: portfolio-next
+        argo_app: portfolio-next-dev
+      - name: prod
+        namespace: portfolio-next
+        argo_app: portfolio-next-prod
+        public_host: 'portfolio-next.homelab.local'

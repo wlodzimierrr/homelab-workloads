@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homelab-wordpress
+  namespace: homelab-wordpress
+  labels:
+    app.kubernetes.io/name: homelab-wordpress
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: homelab-wordpress.dev.homelab.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: homelab-wordpress
+                port:
+                  number: 80

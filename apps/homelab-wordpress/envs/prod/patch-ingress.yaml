@@ -1,0 +1,8 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homelab-wordpress
+  namespace: homelab-wordpress
+spec:
+  rules:
+    - host: homelab-wordpress.homelab.local

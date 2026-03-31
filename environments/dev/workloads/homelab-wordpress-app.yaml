@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homelab-wordpress-dev
+  namespace: argocd
+spec:
+  project: homelab-wordpress
+  source:
+    repoURL: https://github.com/wlodzimierrr/homelab-workloads.git
+    targetRevision: main
+    path: apps/homelab-wordpress/envs/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homelab-wordpress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
