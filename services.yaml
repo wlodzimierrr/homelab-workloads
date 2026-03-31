@@ -65,7 +65,7 @@ services:
     runbook_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
     description: 'Scaffold smoke-test service for validating platform bootstrapping and network reachability'
     observability:
-      mode: app-native
+      mode: ingress-derived
     envs:
       - name: dev
         namespace: scaffold-smoke
@@ -99,7 +99,7 @@ services:
     runbook_url: 'https://github.com/wlodzimierrr/portfolio-next'
     description: 'portfolio website'
     observability:
-      mode: app-native
+      mode: ingress-derived
     envs:
       - name: dev
         namespace: portfolio-next

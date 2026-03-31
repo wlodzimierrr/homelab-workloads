@@ -3473,7 +3473,6 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-<<<<<<< HEAD
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
@@ -3553,7 +3552,6 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-<<<<<<< HEAD
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
@@ -3630,7 +3628,6 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-<<<<<<< HEAD
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
@@ -3708,7 +3705,6 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                     with:
                       context: .
                       push: true
-<<<<<<< HEAD
                       tags: |
                         {image_repo}:sha-${{{{ github.sha }}}}
                         {image_repo}:latest
@@ -3778,7 +3774,6 @@ def repo_workflow(name: str, image_repo: str, template: str) -> str:
                 with:
                   context: .
                   push: true
-<<<<<<< HEAD
                   tags: |
                     {image_repo}:sha-${{{{ github.sha }}}}
                     {image_repo}:latest
