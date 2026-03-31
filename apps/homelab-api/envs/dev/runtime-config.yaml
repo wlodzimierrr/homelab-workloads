@@ -5,4 +5,4 @@ metadata:
   namespace: homelab-api
 data:
   LOG_LEVEL: warning
-  PORTAL_ADMIN_USERS: admin
+  PORTAL_ADMIN_USERS: admin,wlodzimierrr
