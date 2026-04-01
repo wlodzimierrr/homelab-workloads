@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
+import secrets
+import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -40,6 +44,74 @@ def indent_block(value: str, spaces: int) -> str:
 
 def yaml_string(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
+
+
+WordpressSecretEncrypter = Callable[[str, str], str]
+
+
+def generate_wordpress_secret_value(suffix: str) -> str:
+    token = secrets.token_urlsafe(24).replace("-", "a").replace("_", "b")
+    return f"wp-{suffix}-{token}"
+
+
+def render_wordpress_db_secret_manifest(*, db_secret_name: str, namespace: str, env_name: str) -> str:
+    return render_template(
+        """
+        apiVersion: v1
+        kind: Secret
+        metadata:
+          name: {db_secret_name}
+          namespace: {namespace}
+        type: Opaque
+        stringData:
+          WORDPRESS_DB_USER: appuser
+          WORDPRESS_DB_PASSWORD: {wordpress_password}
+          WORDPRESS_DB_NAME: appdb
+          MYSQL_ROOT_PASSWORD: {mysql_root_password}
+        """,
+        db_secret_name=db_secret_name,
+        namespace=namespace,
+        wordpress_password=generate_wordpress_secret_value(env_name),
+        mysql_root_password=generate_wordpress_secret_value(f"{env_name}-root"),
+    )
+
+
+def encrypt_scaffold_secret_manifest(
+    *,
+    plain_manifest: str,
+    target_file_path: str,
+    gitops_root: Path,
+) -> str:
+    config_path = gitops_root / ".sops.yaml"
+    if not config_path.exists():
+        raise RuntimeError(f"Missing SOPS config file: {config_path}")
+    with tempfile.TemporaryDirectory() as tmp_dir_name:
+        tmp_dir = Path(tmp_dir_name)
+        plain_path = tmp_dir / "secret.yaml"
+        plain_path.write_text(plain_manifest, encoding="utf-8")
+        try:
+            completed = subprocess.run(
+                [
+                    "sops",
+                    "--config",
+                    str(config_path),
+                    "--filename-override",
+                    target_file_path,
+                    "--encrypt",
+                    str(plain_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=str(gitops_root),
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError("sops is required to scaffold WordPress secrets.") from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Failed to encrypt WordPress secret manifest with sops: {exc.stderr.strip() or exc.stdout.strip() or exc}"
+            ) from exc
+    return completed.stdout
 
 
 def scaffolded_dev_deploy_job(name: str, image_repo: str) -> str:
@@ -3097,39 +3169,21 @@ def wordpress_overlay_files(
     cpu_limit: str,
     memory_limit: str,
     prod_host: str,
+    wordpress_secret_encrypter: WordpressSecretEncrypter | None = None,
 ) -> dict[str, str]:
     db_secret_name = f"{name}-wordpress-db"
-    files = {
-        "kustomization.yaml": render_template(
-            """
-            apiVersion: kustomize.config.k8s.io/v1beta1
-            kind: Kustomization
-            resources:
-              - ../../base
-            generators:
-              - wordpress-db-secret-generator.yaml
-            commonLabels:
-              homelab.env: {env_name}
-            patches:
-              - path: patch-deployment.yaml
-            """,
-            env_name=env_name,
-        ),
-        "wordpress-db-secret-generator.yaml": render_template(
-            """
-            apiVersion: viaduct.ai/v1
-            kind: ksops
-            metadata:
-              name: wordpress-db-secret-generator
-              annotations:
-                config.kubernetes.io/function: |
-                  exec:
-                    path: ksops
-            files:
-              - wordpress-db-secret.enc.yaml
-            """
-        ),
-        "wordpress-db-secret.enc.yaml": render_template(
+    target_secret_path = f"apps/{name}/envs/{env_name}/wordpress-db-secret.enc.yaml"
+    encrypted_secret = (
+        wordpress_secret_encrypter(
+            target_secret_path,
+            render_wordpress_db_secret_manifest(
+                db_secret_name=db_secret_name,
+                namespace=namespace,
+                env_name=env_name,
+            ),
+        )
+        if wordpress_secret_encrypter is not None
+        else render_template(
             """
             # SOPS-encrypted Secret stub for WordPress + MySQL credentials.
             # Rotate by editing the placeholder values and re-encrypting with SOPS.
@@ -3164,7 +3218,39 @@ def wordpress_overlay_files(
             """,
             db_secret_name=db_secret_name,
             namespace=namespace,
+        )
+    )
+    files = {
+        "kustomization.yaml": render_template(
+            """
+            apiVersion: kustomize.config.k8s.io/v1beta1
+            kind: Kustomization
+            resources:
+              - ../../base
+            generators:
+              - wordpress-db-secret-generator.yaml
+            commonLabels:
+              homelab.env: {env_name}
+            patches:
+              - path: patch-deployment.yaml
+            """,
+            env_name=env_name,
         ),
+        "wordpress-db-secret-generator.yaml": render_template(
+            """
+            apiVersion: viaduct.ai/v1
+            kind: ksops
+            metadata:
+              name: wordpress-db-secret-generator
+              annotations:
+                config.kubernetes.io/function: |
+                  exec:
+                    path: ksops
+            files:
+              - wordpress-db-secret.enc.yaml
+            """
+        ),
+        "wordpress-db-secret.enc.yaml": encrypted_secret,
         "patch-deployment.yaml": render_template(
             """
             apiVersion: apps/v1
@@ -3818,6 +3904,13 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
     ensure_absent(app_root, "service manifest directory")
 
     if template.key == "wordpress":
+        def wordpress_secret_encrypter(target_file_path: str, plain_manifest: str) -> str:
+            return encrypt_scaffold_secret_manifest(
+                plain_manifest=plain_manifest,
+                target_file_path=target_file_path,
+                gitops_root=gitops_root,
+            )
+
         base_files = wordpress_base_files(
             name=args.name,
             namespace=namespace,
@@ -3835,6 +3928,7 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
             cpu_limit="300m",
             memory_limit="256Mi",
             prod_host=prod_host,
+            wordpress_secret_encrypter=wordpress_secret_encrypter,
         )
         prod_overlay = wordpress_overlay_files(
             name=args.name,
@@ -3846,6 +3940,7 @@ def scaffold_gitops(args: argparse.Namespace, template: TemplateSpec, gitops_roo
             cpu_limit="500m",
             memory_limit="512Mi",
             prod_host=prod_host,
+            wordpress_secret_encrypter=wordpress_secret_encrypter,
         )
     else:
         base_files = gitops_base_files(
@@ -4035,7 +4130,7 @@ def main() -> None:
         print(
             f"  2. Open a PR in the workloads repo with apps/{args.name}, bootstrap/project-homelab.yaml, services.yaml, and environments/dev/workloads/{args.name}-app.yaml"
         )
-        print("  3. Rotate the generated SOPS secret placeholders before syncing the WordPress deployment.")
+        print("  3. Re-encrypt the generated WordPress DB secrets if you need to rotate the initial credentials.")
         print("  4. Keep environments/prod/workloads/kustomization.yaml unchanged until a dedicated prod target exists.")
 
 
