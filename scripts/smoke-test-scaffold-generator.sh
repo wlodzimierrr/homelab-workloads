@@ -357,6 +357,10 @@ grep -q "path: /wp-login.php" "$gitops_root_wordpress/apps/scaffold-smoke-wordpr
 grep -q "WORDPRESS_DB_PASSWORD" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
 grep -q "MYSQL_ROOT_PASSWORD" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
 grep -q "sops:" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"
+if grep -q "age1xxx" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev/wordpress-db-secret.enc.yaml"; then
+  echo "wordpress scaffold should emit a real encrypted secret, not the placeholder recipient" >&2
+  exit 1
+fi
 
 CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/dev" >/dev/null
 CI=true HOME="$smoke_home" "$gitops_root_wordpress/scripts/render-kustomize.sh" "$gitops_root_wordpress/apps/scaffold-smoke-wordpress/envs/prod" >/dev/null
