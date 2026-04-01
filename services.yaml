@@ -1,110 +1,94 @@
 services:
-  - service_id: homelab-api
-    name: Homelab API
-    owner: wlodzimierrr
-    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/backend
-    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-api-service-operations.md
-    description: FastAPI backend for the homelab portal and service metadata APIs.
-    observability:
-      mode: app-native
-    envs:
-      - name: dev
-        namespace: homelab-api
-        argo_app: homelab-api-dev
-      - name: prod
-        namespace: homelab-api
-        argo_app: homelab-api-prod
-  - service_id: homelab-web
-    name: Homelab Web
-    owner: wlodzimierrr
-    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/frontend
-    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-web-service-operations.md
-    description: React frontend for the homelab portal UI.
-    observability:
-      mode: ingress-derived
-    envs:
-      - name: dev
-        namespace: homelab-web
-        argo_app: homelab-web-dev
-      - name: prod
-        namespace: homelab-web
-        argo_app: homelab-web-prod
-  - service_id: oauth2-proxy
-    project_id: homelab-web
-    name: OAuth2 Proxy
-    owner: wlodzimierrr
-    repo_url: https://github.com/wlodzimierrr/homelab/tree/main/workloads/apps/homelab-web/envs/dev
-    runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/oidc-setup.md
-    description: Support service providing ForwardAuth and login flows for the homelab web ingress.
-    observability:
-      mode: no-http
-    envs:
-      - name: dev
-        namespace: homelab-web
-        app_label: oauth2-proxy
-        argo_app: homelab-web-dev
-        workload_ref: apps/homelab-web/envs/dev/oauth2-proxy.yaml
-  - service_id: homelab-database
-    name: 'Homelab Database'
-    owner: 'wlodzimierrr'
-    owner_email: 'szerszywlodzimierz@gmail.com'
-    repo_url: 'https://github.com/wlodzimierrr/homelab-workloads.git'
-    runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads.git'
-    description: 'database for homelab'
-    observability:
-      mode: no-http
-    envs:
-      - name: prod
-        namespace: homelab-database
-        argo_app: homelab-database-prod
-  - service_id: scaffold-smoke
-    name: 'scaffold-smoke'
-    owner: 'wlodzimierrr'
-    owner_email: 'szerszywlodzimierz@gmail.com'
-    repo_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
-    runbook_url: 'https://github.com/wlodzimierrr/scaffold-smoke'
-    description: 'Scaffold smoke-test service for validating platform bootstrapping and network reachability'
-    observability:
-      mode: ingress-derived
-    envs:
-      - name: dev
-        namespace: scaffold-smoke
-        argo_app: scaffold-smoke-dev
-      - name: prod
-        namespace: scaffold-smoke
-        argo_app: scaffold-smoke-prod
-        public_host: 'scaffold-smoke.homelab.local'
-  - service_id: homelab-wordpress
-    name: 'Homelab Wordpress'
-    owner: 'wlodzimierrr'
-    owner_email: 'szerszywlodzimierz@gmail.com'
-    repo_url: 'https://github.com/wlodzimierrr/homelab-workloads'
-    runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads'
-    description: 'wordpress app'
-    observability:
-      mode: ingress-derived
-    envs:
-      - name: dev
-        namespace: homelab-wordpress
-        argo_app: homelab-wordpress-dev
-      - name: prod
-        namespace: homelab-wordpress
-        argo_app: homelab-wordpress-prod
-        public_host: 'homelab-wordpress.homelab.local'
-  - service_id: portfolio-next
-    name: 'Portfolio Next'
-    owner: 'wlodzimierrr'
-    owner_email: 'szerszywlodzimierz@gmail.com'
-    repo_url: 'https://github.com/wlodzimierrr/portfolio-next'
-    runbook_url: 'https://github.com/wlodzimierrr/portfolio-next'
-    description: 'portfolio website'
-    observability:
-      mode: ingress-derived
-    envs:
-      - name: dev
-        namespace: portfolio-next
-        argo_app: portfolio-next-dev
-      - name: prod
-        namespace: portfolio-next
-        argo_app: portfolio-next-prod
-        public_host: 'portfolio-next.homelab.local'
+- service_id: homelab-api
+  name: Homelab API
+  owner: wlodzimierrr
+  repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/backend
+  runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-api-service-operations.md
+  description: FastAPI backend for the homelab portal and service metadata APIs.
+  observability:
+    mode: app-native
+  envs:
+  - name: dev
+    namespace: homelab-api
+    argo_app: homelab-api-dev
+  - name: prod
+    namespace: homelab-api
+    argo_app: homelab-api-prod
+- service_id: homelab-web
+  name: Homelab Web
+  owner: wlodzimierrr
+  repo_url: https://github.com/wlodzimierrr/homelab/tree/main/apps/portal/frontend
+  runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/homelab-web-service-operations.md
+  description: React frontend for the homelab portal UI.
+  observability:
+    mode: ingress-derived
+  envs:
+  - name: dev
+    namespace: homelab-web
+    argo_app: homelab-web-dev
+  - name: prod
+    namespace: homelab-web
+    argo_app: homelab-web-prod
+- service_id: oauth2-proxy
+  project_id: homelab-web
+  name: OAuth2 Proxy
+  owner: wlodzimierrr
+  repo_url: https://github.com/wlodzimierrr/homelab/tree/main/workloads/apps/homelab-web/envs/dev
+  runbook_url: https://github.com/wlodzimierrr/homelab/blob/main/docs/runbooks/oidc-setup.md
+  description: Support service providing ForwardAuth and login flows for the homelab
+    web ingress.
+  observability:
+    mode: no-http
+  envs:
+  - name: dev
+    namespace: homelab-web
+    app_label: oauth2-proxy
+    argo_app: homelab-web-dev
+    workload_ref: apps/homelab-web/envs/dev/oauth2-proxy.yaml
+- service_id: homelab-database
+  name: Homelab Database
+  owner: wlodzimierrr
+  owner_email: szerszywlodzimierz@gmail.com
+  repo_url: https://github.com/wlodzimierrr/homelab-workloads.git
+  runbook_url: https://github.com/wlodzimierrr/homelab-workloads.git
+  description: database for homelab
+  observability:
+    mode: no-http
+  envs:
+  - name: prod
+    namespace: homelab-database
+    argo_app: homelab-database-prod
+- service_id: homelab-wordpress
+  name: Homelab Wordpress
+  owner: wlodzimierrr
+  owner_email: szerszywlodzimierz@gmail.com
+  repo_url: https://github.com/wlodzimierrr/homelab-workloads
+  runbook_url: https://github.com/wlodzimierrr/homelab-workloads
+  description: wordpress app
+  observability:
+    mode: ingress-derived
+  envs:
+  - name: dev
+    namespace: homelab-wordpress
+    argo_app: homelab-wordpress-dev
+  - name: prod
+    namespace: homelab-wordpress
+    argo_app: homelab-wordpress-prod
+    public_host: homelab-wordpress.homelab.local
+- service_id: portfolio-next
+  name: Portfolio Next
+  owner: wlodzimierrr
+  owner_email: szerszywlodzimierz@gmail.com
+  repo_url: https://github.com/wlodzimierrr/portfolio-next
+  runbook_url: https://github.com/wlodzimierrr/portfolio-next
+  description: portfolio website
+  observability:
+    mode: ingress-derived
+  envs:
+  - name: dev
+    namespace: portfolio-next
+    argo_app: portfolio-next-dev
+  - name: prod
+    namespace: portfolio-next
+    argo_app: portfolio-next-prod
+    public_host: portfolio-next.homelab.local
