@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mysql-ingress
+  namespace: my-service
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: my-service
+      app.kubernetes.io/component: mysql
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: my-service
+              app.kubernetes.io/component: web
+      ports:
+        - protocol: TCP
+          port: 3306

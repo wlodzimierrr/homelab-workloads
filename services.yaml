@@ -108,3 +108,20 @@ services:
         namespace: portfolio-next
         argo_app: portfolio-next-prod
         public_host: 'portfolio-next.homelab.local'
+  - service_id: my-service
+    name: 'My Service'
+    owner: 'wlodzimierrr'
+    owner_email: 'szerszywlodzimierz@gmail.com'
+    repo_url: 'https://github.com/wlodzimierrr/homelab-workloads'
+    runbook_url: 'https://github.com/wlodzimierrr/homelab-workloads'
+    description: 'takie tam'
+    observability:
+      mode: ingress-derived
+    envs:
+      - name: dev
+        namespace: my-service
+        argo_app: my-service-dev
+      - name: prod
+        namespace: my-service
+        argo_app: my-service-prod
+        public_host: 'my-service.homelab.local'
