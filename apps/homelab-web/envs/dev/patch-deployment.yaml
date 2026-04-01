@@ -7,6 +7,10 @@ spec:
   replicas: 1
   template:
     spec:
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: homelab-web-runtime-config
       containers:
         - name: web
           image: ghcr.io/wlodzimierrr/homelab-web:sha-13780ce5a04f601b14972e7c802853c26f9095d5

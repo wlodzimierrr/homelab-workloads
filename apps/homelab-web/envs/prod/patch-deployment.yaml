@@ -7,9 +7,18 @@ spec:
   replicas: 2
   template:
     spec:
+      volumes:
+        - name: runtime-config
+          configMap:
+            name: homelab-web-runtime-config
       containers:
         - name: web
           image: ghcr.io/wlodzimierrr/homelab-web:sha-6a30b92a070e7bf11e847dd56052e92171a09a22
+          volumeMounts:
+            - name: runtime-config
+              mountPath: /usr/share/nginx/html/runtime-config.js
+              subPath: runtime-config.js
+              readOnly: true
           resources:
             requests:
               cpu: 100m
