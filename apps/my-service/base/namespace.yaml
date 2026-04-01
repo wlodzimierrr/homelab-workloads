@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: my-service
-  labels:
-    app.kubernetes.io/name: my-service
