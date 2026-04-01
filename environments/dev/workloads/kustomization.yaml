@@ -7,6 +7,5 @@ resources:
 - loki-app.yaml
 - monitoring-app.yaml
 - monitoring-ingress-app.yaml
-- my-service-app.yaml
 - portfolio-next-app.yaml
 - promtail-app.yaml
