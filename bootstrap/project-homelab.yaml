@@ -6,10 +6,10 @@ metadata:
 spec:
   description: Homelab bootstrap applications in argocd namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: argocd
-      server: https://kubernetes.default.svc
+  - namespace: argocd
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist: []
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -20,13 +20,13 @@ metadata:
 spec:
   description: Homelab platform resources in platform namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: platform
-      server: https://kubernetes.default.svc
+  - namespace: platform
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -36,17 +36,17 @@ metadata:
 spec:
   description: Homelab monitoring stack resources in monitoring namespace
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
-    - https://prometheus-community.github.io/helm-charts
-    - https://grafana.github.io/helm-charts
+  - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://prometheus-community.github.io/helm-charts
+  - https://grafana.github.io/helm-charts
   destinations:
-    - namespace: monitoring
-      server: https://kubernetes.default.svc
-    - namespace: kube-system
-      server: https://kubernetes.default.svc
+  - namespace: monitoring
+    server: https://kubernetes.default.svc
+  - namespace: kube-system
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+  - group: '*'
+    kind: '*'
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -56,17 +56,17 @@ metadata:
 spec:
   description: Homelab API resources in homelab-api namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: homelab-api
-      server: https://kubernetes.default.svc
+  - namespace: homelab-api
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
+  - group: ''
+    kind: Namespace
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRole
+  - group: rbac.authorization.k8s.io
+    kind: ClusterRoleBinding
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -76,13 +76,13 @@ metadata:
 spec:
   description: Homelab web resources in homelab-web namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: homelab-web
-      server: https://kubernetes.default.svc
+  - namespace: homelab-web
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -92,29 +92,13 @@ metadata:
 spec:
   description: database for homelab resources in homelab-database namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: homelab-database
-      server: https://kubernetes.default.svc
+  - namespace: homelab-database
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
----
-apiVersion: argoproj.io/v1alpha1
-kind: AppProject
-metadata:
-  name: scaffold-smoke
-  namespace: argocd
-spec:
-  description: Scaffold smoke-test service for validating platform bootstrapping and network reachability resources in scaffold-smoke namespace only
-  sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
-  destinations:
-    - namespace: scaffold-smoke
-      server: https://kubernetes.default.svc
-  clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -124,13 +108,13 @@ metadata:
 spec:
   description: wordpress app resources in homelab-wordpress namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: homelab-wordpress
-      server: https://kubernetes.default.svc
+  - namespace: homelab-wordpress
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -140,13 +124,13 @@ metadata:
 spec:
   description: portfolio website resources in portfolio-next namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: portfolio-next
-      server: https://kubernetes.default.svc
+  - namespace: portfolio-next
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -156,10 +140,10 @@ metadata:
 spec:
   description: takie tam resources in my-service namespace only
   sourceRepos:
-    - https://github.com/wlodzimierrr/homelab-workloads.git
+  - https://github.com/wlodzimierrr/homelab-workloads.git
   destinations:
-    - namespace: my-service
-      server: https://kubernetes.default.svc
+  - namespace: my-service
+    server: https://kubernetes.default.svc
   clusterResourceWhitelist:
-    - group: ""
-      kind: Namespace
+  - group: ''
+    kind: Namespace
