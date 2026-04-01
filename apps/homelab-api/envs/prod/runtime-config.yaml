@@ -5,4 +5,5 @@ metadata:
   namespace: homelab-api
 data:
   LOG_LEVEL: warning
+  PORTAL_AUTH_MODE: forwarded_identity
   PORTAL_ADMIN_USERS: admin,wlodzimierrr,szerszywlodzimierz@gmail.com

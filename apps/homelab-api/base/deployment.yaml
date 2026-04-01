@@ -46,6 +46,24 @@ spec:
                 configMapKeyRef:
                   name: homelab-api-runtime-config
                   key: LOG_LEVEL
+            - name: PORTAL_AUTH_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: homelab-api-runtime-config
+                  key: PORTAL_AUTH_MODE
+                  optional: true
+            - name: PORTAL_ADMIN_USERS
+              valueFrom:
+                configMapKeyRef:
+                  name: homelab-api-runtime-config
+                  key: PORTAL_ADMIN_USERS
+                  optional: true
+            - name: PORTAL_ADMIN_GROUPS
+              valueFrom:
+                configMapKeyRef:
+                  name: homelab-api-runtime-config
+                  key: PORTAL_ADMIN_GROUPS
+                  optional: true
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
