@@ -13,7 +13,7 @@ spec:
             name: homelab-web-runtime-config
       containers:
         - name: web
-          image: ghcr.io/wlodzimierrr/homelab-web:sha-7f8822fad00f2b94b079dcf671938f986045d0d2
+          image: ghcr.io/wlodzimierrr/homelab-web:sha-6e81bd41964d638f943c4ac07683531b44f236f4
           resources:
             requests:
               cpu: 50m
