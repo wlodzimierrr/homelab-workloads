@@ -362,10 +362,16 @@ Create/update the encrypted secret and render the dev overlay locally:
 ./scripts/render-kustomize.sh apps/homelab-web/envs/dev >/dev/null
 ```
 
-This config protects both UI and `/api/*` with:
+This config protects UI and `/api/*` differently:
 
-- `oauth2-errors` middleware: converts unauthenticated `401` responses to the oauth2 sign-in flow.
-- `oauth2-forward-auth` middleware: validates session and forwards user/group claims.
+- UI ingress uses `oauth2-errors` + `oauth2-forward-auth`
+- API ingress uses `oauth2-forward-auth` only
+
+The resulting behavior is:
+
+- UI unauthenticated -> oauth2 sign-in/login flow
+- API unauthenticated -> plain `401 Unauthorized`
+- API authenticated but not allowed -> plain `403 Forbidden`
 
 Authorization failures should remain plain `403` responses so the portal can distinguish:
 

@@ -31,4 +31,19 @@ if rg -n '401-403|403-403|^[[:space:]]*-[[:space:]]*"403"[[:space:]]*$' "apps/ho
   exit 1
 fi
 
+if ! rg -n 'router\.middlewares:\s+homelab-web-oauth2-errors@kubernetescrd,homelab-web-oauth2-forward-auth@kubernetescrd' "apps/homelab-web/envs/dev/patch-ingress.yaml" >/dev/null; then
+  echo "UI ingress must keep oauth2 error rewriting before forward auth" >&2
+  exit 1
+fi
+
+if ! rg -n 'router\.middlewares:\s+homelab-web-oauth2-forward-auth@kubernetescrd' "apps/homelab-web/envs/dev/patch-ingress-api.yaml" >/dev/null; then
+  echo "API ingress must use forward auth without oauth2 error rewriting" >&2
+  exit 1
+fi
+
+if rg -n 'oauth2-errors@kubernetescrd' "apps/homelab-web/envs/dev/patch-ingress-api.yaml" >/dev/null; then
+  echo "API ingress must not use oauth2 error rewriting" >&2
+  exit 1
+fi
+
 echo "sso manifest validation passed"
