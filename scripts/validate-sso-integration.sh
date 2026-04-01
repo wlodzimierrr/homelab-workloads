@@ -21,4 +21,14 @@ done
 
 "$repo_root/scripts/render-kustomize.sh" apps/homelab-web/envs/dev >/dev/null
 
+if ! rg -n '^[[:space:]]*-[[:space:]]*"401"[[:space:]]*$' "apps/homelab-web/envs/dev/middleware-oauth2.yaml" >/dev/null; then
+  echo "oauth2 errors middleware must rewrite 401 responses" >&2
+  exit 1
+fi
+
+if rg -n '401-403|403-403|^[[:space:]]*-[[:space:]]*"403"[[:space:]]*$' "apps/homelab-web/envs/dev/middleware-oauth2.yaml" >/dev/null; then
+  echo "oauth2 errors middleware must not rewrite 403 responses" >&2
+  exit 1
+fi
+
 echo "sso manifest validation passed"

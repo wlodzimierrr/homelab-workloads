@@ -364,8 +364,13 @@ Create/update the encrypted secret and render the dev overlay locally:
 
 This config protects both UI and `/api/*` with:
 
-- `oauth2-errors` middleware: converts auth `401/403` to oauth2 sign-in flow.
+- `oauth2-errors` middleware: converts unauthenticated `401` responses to the oauth2 sign-in flow.
 - `oauth2-forward-auth` middleware: validates session and forwards user/group claims.
+
+Authorization failures should remain plain `403` responses so the portal can distinguish:
+
+- not authenticated -> oauth2 sign-in/login flow
+- authenticated but not allowed -> `403 Forbidden`
 
 Commit `apps/homelab-web/envs/dev/oauth2-proxy-secret.enc.yaml` and let Argo CD reconcile it through KSOPS.
 
